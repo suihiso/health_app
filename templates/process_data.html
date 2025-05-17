@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}Обработка данных{% endblock %}
+
+{% block content %}
+<h2>Обработка данных</h2>
+
+<!-- Липкое меню с разделами -->
+<div class="anchor-nav mb-4 d-flex justify-content-between">
+    <!-- Кнопки с действиями слева -->
+    <div>
+        <a href="{{ url_for('download_cleaned_data') }}" class="btn btn-success btn-sm">Скачать обработанные данные</a>
+    </div>
+
+    <!-- Кнопка справа -->
+    <div class="ml-auto">
+        <a href="{{ url_for('explore') }}" class="btn btn-warning btn-sm">Обзор данных</a>
+        <a href="{{ url_for('select_action') }}" class="btn btn-secondary btn-sm">Назад</a>
+    </div>
+</div>
+
+<!-- Вывод сообщений об успешных действиях -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<ul class="list-group mb-4">
+    {% for category, message in messages %}
+    <li class="list-group-item list-group-item-{{ category }}">{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endwith %}
+
+<!-- Структура с тремя столбцами: Фильтрация данных, Работа со строками, Удаление столбцов -->
+<div class="row">
+    <!-- Первый столбец: Фильтрация данных -->
+    <div class="col-md-4 mb-4 border-end d-flex flex-column justify-content-center align-items-center">
+        <h4 id="filter">Фильтрация данных</h4>
+        <form method="post" class="text-center">
+            <label for="filter_column" class="form-label">Выберите колонку для фильтрации:</label>
+            <select name="filter_column" class="form-select">
+                {% for column in columns %}
+                <option value="{{ column }}">{{ column }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="condition" class="form-select mt-2">
+                <option value="==">Равно</option>
+                <option value=">">Больше</option>
+                <option value="<">Меньше</option>
+                <option value="!=">Не равно</option>
+            </select>
+
+            <input type="text" name="value" class="form-control mt-2" placeholder="Введите значение для фильтрации">
+
+            <button type="submit" name="action" value="filter" class="btn btn-primary mt-3">Фильтровать данные</button>
+        </form>
+    </div>
+
+    <!-- Второй столбец: Работа со строками -->
+    <div class="col-md-4 mb-4 border-end d-flex flex-column justify-content-center align-items-center">
+        <h4 id="row_operations">Работа со строками</h4>
+        <form method="post" class="text-center">
+            <label for="value_column" class="form-label">Выберите столбец, в котором содержится значение:</label>
+            <select name="value_column" id="value_column" class="form-select mb-3">
+                {% for column in columns %}
+                <option value="{{ column }}">{{ column }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="column_values" class="form-label">Выберите значение:</label>
+            <select name="column_values" id="column_values" class="form-select" multiple>
+                {% for value in unique_values %}
+                <option value="{{ value }}">{{ value }}</option>
+                {% endfor %}
+            </select>
+            <div class="form-text mb-3">Удерживайте Ctrl (Cmd), чтобы выбрать несколько значений</div>
+
+            <button type="button" class="btn btn-danger mb-3" data-bs-toggle="modal" data-bs-target="#deleteValueModal"
+                data-bs-toggle="tooltip" title="Удаление всех строк, которые содержат выбранные значения">
+                Удалить выбранные значения
+            </button>
+
+            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#keepValueModal"
+                data-bs-toggle="tooltip" title="Удаление всех строк, которые НЕ содержат выбранные значения">
+                Удалить все значения, кроме выбранных
+            </button>
+
+            <!-- Модальное окно для подтверждения удаления значения -->
+            <div class="modal fade" id="deleteValueModal" tabindex="-1" aria-labelledby="deleteValueModalLabel"
+                aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="deleteValueModalLabel">Подтверждение действия</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            Внимание! Это действие удалит все строки, содержащие выбранные значения. Подтвердить
+                            действие?
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" name="action" value="delete_value" class="btn btn-danger">Да</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Нет</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Модальное окно для подтверждения сохранения только выбранных значений -->
+            <div class="modal fade" id="keepValueModal" tabindex="-1" aria-labelledby="keepValueModalLabel"
+                aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="keepValueModalLabel">Подтверждение действия</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            Внимание! Это действие удалит все строки, НЕ содержащие выбранные значения. Подтвердить
+                            действие?
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" name="action" value="keep_only_value"
+                                class="btn btn-warning">Да</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Нет</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Третий столбец: Удаление столбцов -->
+    <div class="col-md-4 mb-4 d-flex flex-column justify-content-center align-items-center">
+        <h4 id="drop_columns">Удаление столбцов</h4>
+        <form method="post" class="text-center">
+            <label for="columns_to_drop" class="form-label">Выберите столбцы для удаления:</label>
+            <select name="columns_to_drop" id="columns_to_drop" class="form-select" multiple>
+                {% for column in columns %}
+                <option value="{{ column }}">{{ column }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" name="action" value="drop_columns" class="btn btn-danger mt-3">Удалить выбранные
+                столбцы</button>
+        </form>
+    </div>
+</div>
+
+<hr>
+
+<!-- Нижняя структура с двумя столбцами -->
+<div class="row">
+    <!-- Первый столбец: Работа с пропусками -->
+    <div class="col-md-6 mb-4 border-end d-flex flex-column justify-content-center align-items-center">
+        <h4 id="drop_na">Работа с пропусками</h4>
+        <form method="post" class="text-center">
+            <button type="submit" name="action" value="drop_na" class="btn btn-danger mb-3">Удалить строки с
+                пропусками</button>
+            <button type="submit" name="action" value="fill_mean" class="btn btn-warning mb-3">Заполнить пропуски
+                средним значением</button>
+            <button type="submit" name="action" value="fill_median" class="btn btn-info mb-3" data-bs-toggle="tooltip"
+                title="Медиана - значение, которое находится в середине набора данных, если упорядочить их по возрастанию">Заполнить
+                пропуски медианой</button>
+            <button type="submit" name="action" value="fill_mode" class="btn btn-primary mb-3" data-bs-toggle="tooltip"
+                title="Мода - значение, которое встречается наиболее часто">Заполнить пропуски
+                модой</button>
+        </form>
+    </div>
+
+    <!-- Второй столбец: Работа с аномальными значениями -->
+    <div class="col-md-6 mb-4 d-flex flex-column justify-content-center align-items-center">
+        <h4 id="outliers">Работа с аномальными значениями</h4>
+        <form method="post" class="text-center">
+            <label for="outlier_column" class="form-label">Выберите столбец с аномальными значениями:</label>
+            <select name="outlier_column" id="outlier_column" class="form-select mb-3">
+                {% for column in numeric_columns %}
+                <option value="{{ column }}">{{ column }}</option>
+                {% endfor %}
+            </select>
+
+            <button type="submit" name="action" value="remove_outliers" class="btn btn-danger mb-3">Удалить строки с
+                выбросами</button>
+            <button type="submit" name="action" value="replace_outliers" class="btn btn-warning mb-3">Заменить выбросы
+                на
+                медиану</button>
+        </form>
+    </div>
+</div>
+
+<hr>
+
+<!-- Инициализация подсказок Bootstrap -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+
+        // Функция для получения уникальных значений столбца
+        function fetchUniqueValues(columnName) {
+            fetch(`/get_unique_values?column=${columnName}`)
+                .then(response => response.json())
+                .then(data => {
+                    const selectElement = document.getElementById('column_values');
+                    // Очистить текущие значения
+                    selectElement.innerHTML = '';
+
+                    // Добавить новые значения
+                    data.values.forEach(value => {
+                        const option = document.createElement('option');
+                        option.value = value;
+                        option.textContent = value;
+                        selectElement.appendChild(option);
+                    });
+                })
+                .catch(error => console.error('Ошибка при получении значений:', error));
+        }
+
+        // Обработчик изменения выбранного столбца для получения уникальных значений
+        document.getElementById('value_column').addEventListener('change', function () {
+            fetchUniqueValues(this.value);
+        });
+
+        // Загрузка уникальных значений при первой загрузке страницы
+        const defaultColumnElement = document.getElementById('value_column');
+        if (defaultColumnElement && defaultColumnElement.value) {
+            fetchUniqueValues(defaultColumnElement.value);
+        }
+    });
+</script>
+
+{% endblock %}

@@ -1,0 +1,634 @@
+{% extends "base.html" %}
+
+{% block title %}Обучение моделей прогнозирования{% endblock %}
+
+{% block content %}
+<h2>Обучение моделей прогнозирования</h2>
+
+<!-- Липкое меню с вкладками -->
+<div class="anchor-nav mb-4 d-flex justify-content-between">
+    <!-- Кнопки слева для выбора типа задачи -->
+    <div>
+        <button id="regressionBtn" class="btn btn-outline-primary me-2" data-bs-toggle="tooltip"
+            data-bs-placement="bottom"
+            title="Задача регрессии используется для прогнозирования непрерывных числовых значений, таких как вес, рост, возраст или другие количественные показатели">Задача
+            регрессии</button>
+        <button id="classificationBtn" class="btn btn-outline-primary" data-bs-toggle="tooltip"
+            data-bs-placement="bottom"
+            title="Задача классификации используется для определения категории или класса объекта, например, диагностика заболевания (болен/здоров) или другие категориальные переменные">Задача
+            классификации</button>
+    </div>
+
+    <!-- Кнопка справа для возврата -->
+    <div class="ml-auto">
+        <a href="{{ url_for('select_action') }}" class="btn btn-secondary">Назад</a>
+    </div>
+</div>
+
+<!-- Вывод сообщений об ошибках -->
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    {{ error }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+<!-- Начальная инструкция (показывается только если задача не выбрана) -->
+<div id="initialMessage" class="alert alert-info text-center {% if task_type %}d-none{% endif %}">
+    <h5>ВЫБЕРИТЕ ТИП ЗАДАЧИ, КОТОРУЮ ВЫ ХОТИТЕ РЕШИТЬ</h5>
+
+    <div class="mt-3">
+        <p class="text-start"><strong>Задача регрессии</strong> используется для прогнозирования непрерывных числовых
+            значений. Например, прогнозирование веса, роста, возраста, количества пациентов и других
+            количественных показателей.</p>
+        <p class="text-start"><strong>Задача классификации</strong> используется для определения категории или класса
+            объекта. Например, диагностика заболевания (болен/здоров), определение типа диагноза, прогнозирование
+            результата лечения или других категориальных переменных.</p>
+    </div>
+</div>
+
+<!-- Форма для построения модели регрессии -->
+<form method="post" id="regressionForm" class="{% if task_type != 'regression' %}d-none{% endif %}">
+    <input type="hidden" name="task_type" value="regression">
+
+    <div class="row mb-4">
+        <!-- Левая колонка - Выбор модели -->
+        <div class="col-md-6 border-end">
+            <h4 class="mb-3">Выбор модели прогнозирования</h4>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input reg-model-checkbox" type="checkbox" name="model_types[]" id="linearModel"
+                    value="linear" {% if "linear" in model_types %}checked{% endif %}>
+                <label class="form-check-label" for="linearModel" data-bs-toggle="tooltip" data-bs-placement="right"
+                    title="Линейная регрессия подходит для простых зависимостей, когда целевая переменная линейно зависит от признаков. Хорошо работает на небольших датасетах и проста в интерпретации.">
+                    Линейная регрессия
+                </label>
+            </div>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input reg-model-checkbox" type="checkbox" name="model_types[]"
+                    id="decisionTreeRegModel" value="decision_tree" {% if "decision_tree" in model_types and
+                    task_type=='regression' %}checked{% endif %}>
+                <label class="form-check-label" for="decisionTreeRegModel" data-bs-toggle="tooltip"
+                    data-bs-placement="right"
+                    title="Дерево решений разбивает данные на подмножества, основываясь на значениях признаков. Подходит для нелинейных зависимостей и легко интерпретируется.">
+                    Дерево решений
+                </label>
+            </div>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input reg-model-checkbox" type="checkbox" name="model_types[]"
+                    id="randomForestRegModel" value="random_forest" {% if "random_forest" in model_types and
+                    task_type=='regression' %}checked{% endif %}>
+                <label class="form-check-label" for="randomForestRegModel" data-bs-toggle="tooltip"
+                    data-bs-placement="right"
+                    title="Случайный лес - ансамбль деревьев решений. Подходит для сложных нелинейных зависимостей. Устойчив к выбросам и хорошо работает с большими датасетами.">
+                    Случайный лес
+                </label>
+            </div>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input reg-model-checkbox" type="checkbox" name="model_types[]"
+                    id="gradientBoostingRegModel" value="gradient_boosting" {% if "gradient_boosting" in model_types and
+                    task_type=='regression' %}checked{% endif %}>
+                <label class="form-check-label" for="gradientBoostingRegModel" data-bs-toggle="tooltip"
+                    data-bs-placement="right"
+                    title="Градиентный бустинг - последовательный ансамбль деревьев решений. Обычно показывает лучшие результаты, но может переобучаться. Хорошо работает с различными типами данных.">
+                    Градиентный бустинг
+                </label>
+            </div>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input reg-model-checkbox" type="checkbox" name="model_types[]" id="svrModel"
+                    value="svr" {% if "svr" in model_types %}checked{% endif %}>
+                <label class="form-check-label" for="svrModel" data-bs-toggle="tooltip" data-bs-placement="right"
+                    title="Метод опорных векторов хорошо подходит для данных с небольшим числом признаков. Хорошо справляется с задачами, где граница между классами нелинейна, но требует тщательного подбора параметров.">
+                    Метод опорных векторов
+                </label>
+            </div>
+            <div class="invalid-feedback mb-2" id="regModelError">Необходимо выбрать хотя бы одну модель прогнозирования
+            </div>
+            <div class="form-text mb-3"><small>Выберите не более 2-х моделей</small></div>
+        </div>
+
+        <!-- Правая колонка - Выбор переменных -->
+        <div class="col-md-6">
+            <h4 class="mb-3">Выбор переменных</h4>
+
+            <!-- Выбор целевой переменной -->
+            <div class="mb-3">
+                <label for="targetColumnReg" class="form-label">Целевая переменная (что прогнозировать)</label>
+                <select class="form-select" id="targetColumnReg" name="target_column">
+                    <option value="">Выберите переменную</option>
+                    {% for column in numeric_columns %}
+                    <option value="{{ column }}" {% if target_column==column and task_type=='regression' %}selected{%
+                        endif %}>{{ column }}</option>
+                    {% endfor %}
+                </select>
+                <div class="invalid-feedback">Необходимо выбрать целевую переменную</div>
+            </div>
+
+            <!-- Выбор признаков -->
+            <div class="mb-3">
+                <label for="featureColumnsReg" class="form-label">Признаки (на основе чего
+                    прогнозировать)</label>
+                <select class="form-select" id="featureColumnsReg" name="feature_columns" multiple>
+                    {% for column in all_columns %}
+                    <option value="{{ column }}" {% if column in feature_columns and task_type=='regression'
+                        %}selected{% endif %}>{{ column }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Удерживайте Ctrl (Cmd), чтобы выбрать несколько переменных</div>
+                <div class="invalid-feedback">Необходимо выбрать хотя бы один признак</div>
+                <div class="alert alert-danger small mt-2 p-2 d-none" id="regTargetInFeaturesError">
+                    Целевая переменная не должна входить в список признаков
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="border-top border-bottom py-4 text-center">
+        <button type="submit" class="btn btn-primary btn-lg">Обучение моделей</button>
+    </div>
+</form>
+
+<!-- Форма для построения модели классификации -->
+<form method="post" id="classificationForm" class="{% if task_type != 'classification' %}d-none{% endif %}">
+    <input type="hidden" name="task_type" value="classification">
+
+    <div class="row mb-4">
+        <!-- Левая колонка - Выбор модели -->
+        <div class="col-md-6 border-end">
+            <h4 class="mb-3">Выбор модели прогнозирования</h4>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input class-model-checkbox" type="checkbox" name="model_types[]"
+                    id="logisticModel" value="logistic" {% if "logistic" in model_types %}checked{% endif %}>
+                <label class="form-check-label" for="logisticModel" data-bs-toggle="tooltip" data-bs-placement="right"
+                    title="Логистическая регрессия хорошо подходит для бинарной классификации. Проста в интерпретации и вычислительно эффективна.">
+                    Логистическая регрессия
+                </label>
+            </div>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input class-model-checkbox" type="checkbox" name="model_types[]"
+                    id="decisionTreeClassModel" value="decision_tree" {% if "decision_tree" in model_types and
+                    task_type=='classification' %}checked{% endif %}>
+                <label class="form-check-label" for="decisionTreeClassModel" data-bs-toggle="tooltip"
+                    data-bs-placement="right"
+                    title="Дерево решений разбивает данные на группы, основываясь на правилах. Легко интерпретируется и может работать с категориальными признаками без предварительной обработки.">
+                    Дерево решений
+                </label>
+            </div>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input class-model-checkbox" type="checkbox" name="model_types[]"
+                    id="randomForestClassModel" value="random_forest" {% if "random_forest" in model_types and
+                    task_type=='classification' %}checked{% endif %}>
+                <label class="form-check-label" for="randomForestClassModel" data-bs-toggle="tooltip"
+                    data-bs-placement="right"
+                    title="Случайный лес - ансамбль деревьев решений. Устойчив к переобучению и хорошо работает со сложными нелинейными зависимостями.">
+                    Случайный лес
+                </label>
+            </div>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input class-model-checkbox" type="checkbox" name="model_types[]"
+                    id="gradientBoostingClassModel" value="gradient_boosting" {% if "gradient_boosting" in model_types
+                    and task_type=='classification' %}checked{% endif %}>
+                <label class="form-check-label" for="gradientBoostingClassModel" data-bs-toggle="tooltip"
+                    data-bs-placement="right"
+                    title="Градиентный бустинг последовательно обучает деревья решений, корректируя ошибки предыдущих. Обычно показывает лучшие результаты точности, но может переобучаться.">
+                    Градиентный бустинг
+                </label>
+            </div>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input class-model-checkbox" type="checkbox" name="model_types[]" id="knnModel"
+                    value="knn" {% if "knn" in model_types %}checked{% endif %}>
+                <label class="form-check-label" for="knnModel" data-bs-toggle="tooltip" data-bs-placement="right"
+                    title="Метод k-ближайших соседей классифицирует объекты по большинству 'голосов' ближайших к нему соседей. Прост в реализации, но может быть неэффективным на больших данных.">
+                    К-ближайших соседей
+                </label>
+            </div>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input class-model-checkbox" type="checkbox" name="model_types[]" id="svcModel"
+                    value="svc" {% if "svc" in model_types %}checked{% endif %}>
+                <label class="form-check-label" for="svcModel" data-bs-toggle="tooltip" data-bs-placement="right"
+                    title="Метод опорных векторов находит оптимальную гиперплоскость, разделяющую классы. Эффективен в пространствах высокой размерности и когда классы хорошо разделимы.">
+                    Метод опорных векторов
+                </label>
+            </div>
+            <div class="invalid-feedback mb-2" id="classModelError">Необходимо выбрать хотя бы одну модель
+                прогнозирования</div>
+            <div class="form-text mb-3"><small>Выберите не более 2-х моделей</small></div>
+        </div>
+
+        <!-- Правая колонка - Выбор переменных -->
+        <div class="col-md-6">
+            <h4 class="mb-3">Выбор переменных</h4>
+
+            <!-- Выбор целевой переменной -->
+            <div class="mb-3">
+                <label for="targetColumnClass" class="form-label">Целевая переменная (что
+                    прогнозировать)</label>
+                <select class="form-select" id="targetColumnClass" name="target_column">
+                    <option value="">Выберите переменную</option>
+                    {% for column in all_columns %}
+                    <option value="{{ column }}" {% if target_column==column and task_type=='classification'
+                        %}selected{% endif %}>{{ column }}</option>
+                    {% endfor %}
+                </select>
+                <div class="invalid-feedback">Необходимо выбрать целевую переменную</div>
+            </div>
+
+            <!-- Выбор признаков -->
+            <div class="mb-3">
+                <label for="featureColumnsClass" class="form-label">Признаки (на основе чего
+                    прогнозировать)</label>
+                <select class="form-select" id="featureColumnsClass" name="feature_columns" multiple>
+                    {% for column in all_columns %}
+                    <option value="{{ column }}" {% if column in feature_columns and task_type=='classification'
+                        %}selected{% endif %}>{{ column }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Удерживайте Ctrl (Cmd), чтобы выбрать несколько переменных</div>
+                <div class="invalid-feedback">Необходимо выбрать хотя бы один признак</div>
+                <div class="alert alert-danger small mt-2 p-2 d-none" id="classTargetInFeaturesError">
+                    Целевая переменная не должна входить в список признаков
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="border-top border-bottom py-4 text-center">
+        <button type="submit" class="btn btn-primary btn-lg">Обучить модели</button>
+    </div>
+</form>
+
+<!-- Результаты прогнозирования, если они есть -->
+{% if results %}
+<div id="resultContainer" class="mt-4">
+    <h3 class="text-center mb-3">Результат обучения моделей</h3>
+
+    <!-- Если выбрана одна модель -->
+    {% if results|length == 1 %}
+    {% set result = results[0] %}
+    <!-- Метрики и вывод - две колонки -->
+    <div class="row mb-4">
+        <!-- Метрики - левая колонка -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Метрики модели - {{ result.model_name }}</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        {% for metric_name, metric_value in result.metrics.items() %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ metric_name }}
+                            <span class="badge bg-primary rounded-pill">{{ metric_value }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вывод - правая колонка -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Интерпретация результатов</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ result.conclusion }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- График -->
+    <div class="text-center mb-4">
+        <img src="data:image/png;base64,{{ result.image }}" class="img-fluid border"
+            alt="График результатов прогнозирования">
+    </div>
+
+    <!-- Скачать график -->
+    <div class="text-center mb-4">
+        <a href="{{ url_for('download_chart', model_index=0) }}" class="btn btn-success me-2">Сохранить график</a>
+        <a href="{{ url_for('download_model', model_index=0) }}" class="btn btn-primary">Сохранить обученную модель</a>
+    </div>
+
+    {% else %}
+    <!-- Если выбраны две модели -->
+    <div class="row">
+        {% for result in results %}
+        <div class="col-md-6 mb-4">
+            <div class="card border-primary mb-3">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">{{ result.model_name }}</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Метрики модели -->
+                    <h6 class="card-title">Метрики модели</h6>
+                    <ul class="list-group list-group-flush mb-3">
+                        {% for metric_name, metric_value in result.metrics.items() %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ metric_name }}
+                            <span class="badge bg-primary rounded-pill">{{ metric_value }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+
+                    <!-- Интерпретация результатов -->
+                    <h6 class="card-title">Интерпретация результатов</h6>
+                    <p>{{ result.conclusion }}</p>
+
+                    <!-- График -->
+                    <div class="text-center mb-3">
+                        <img src="data:image/png;base64,{{ result.image }}" class="img-fluid border"
+                            alt="График результатов прогнозирования">
+                    </div>
+
+                    <!-- Кнопки -->
+                    <div class="d-flex justify-content-center">
+                        <a href="{{ url_for('download_chart', model_index=loop.index0) }}"
+                            class="btn btn-success me-2">Сохранить график</a>
+                        <a href="{{ url_for('download_model', model_index=loop.index0) }}"
+                            class="btn btn-primary">Сохранить обученную модель</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- JavaScript для вкладок и подсказок -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Включаем всплывающие подсказки
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // Получаем элементы страницы
+        const regressionBtn = document.getElementById('regressionBtn');
+        const classificationBtn = document.getElementById('classificationBtn');
+        const regressionForm = document.getElementById('regressionForm');
+        const classificationForm = document.getElementById('classificationForm');
+        const initialMessage = document.getElementById('initialMessage');
+        const resultContainer = document.getElementById('resultContainer');
+
+        // Ограничение выбора моделей регрессии (максимум 2)
+        const regModelCheckboxes = document.querySelectorAll('.reg-model-checkbox');
+        regModelCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function () {
+                const checked = document.querySelectorAll('.reg-model-checkbox:checked');
+                if (checked.length > 2) {
+                    this.checked = false;
+                }
+            });
+        });
+
+        // Ограничение выбора моделей классификации (максимум 2)
+        const classModelCheckboxes = document.querySelectorAll('.class-model-checkbox');
+        classModelCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function () {
+                const checked = document.querySelectorAll('.class-model-checkbox:checked');
+                if (checked.length > 2) {
+                    this.checked = false;
+                }
+            });
+        });
+
+        // Обработчик для кнопки регрессии
+        regressionBtn.addEventListener('click', function () {
+            regressionBtn.classList.remove('btn-outline-primary');
+            regressionBtn.classList.add('btn-primary');
+            classificationBtn.classList.remove('btn-primary');
+            classificationBtn.classList.add('btn-outline-primary');
+
+            regressionForm.classList.remove('d-none');
+            classificationForm.classList.add('d-none');
+            initialMessage.classList.add('d-none');
+
+            // Скрываем результаты при переключении типа задачи
+            if (resultContainer) {
+                resultContainer.classList.add('d-none');
+            }
+        });
+
+        // Обработчик для кнопки классификации
+        classificationBtn.addEventListener('click', function () {
+            classificationBtn.classList.remove('btn-outline-primary');
+            classificationBtn.classList.add('btn-primary');
+            regressionBtn.classList.remove('btn-primary');
+            regressionBtn.classList.add('btn-outline-primary');
+
+            classificationForm.classList.remove('d-none');
+            regressionForm.classList.add('d-none');
+            initialMessage.classList.add('d-none');
+
+            // Скрываем результаты при переключении типа задачи
+            if (resultContainer) {
+                resultContainer.classList.add('d-none');
+            }
+        });
+
+        // Устанавливаем активную вкладку при загрузке страницы, если есть выбранный тип задачи
+        /* Jinja-блок начало */
+        {% if task_type == 'regression' %}
+        regressionBtn.classList.remove('btn-outline-primary');
+        regressionBtn.classList.add('btn-primary');
+        regressionForm.classList.remove('d-none');
+        initialMessage.classList.add('d-none');
+        {% elif task_type == 'classification' %}
+        classificationBtn.classList.remove('btn-outline-primary');
+        classificationBtn.classList.add('btn-primary');
+        classificationForm.classList.remove('d-none');
+        initialMessage.classList.add('d-none');
+        {% else %}
+        // Если тип задачи не выбран, показываем начальную инструкцию
+        initialMessage.classList.remove('d-none');
+        regressionForm.classList.add('d-none');
+        classificationForm.classList.add('d-none');
+        {% endif %}
+        /* Jinja-блок конец */
+
+        // Валидация формы для регрессии
+        const regressionTargetField = document.getElementById('targetColumnReg');
+        const regressionFeaturesField = document.getElementById('featureColumnsReg');
+        const regModelError = document.getElementById('regModelError');
+        const regTargetInFeaturesError = document.getElementById('regTargetInFeaturesError');
+
+        regressionForm.addEventListener('submit', function (e) {
+            let isValid = true;
+
+            // Проверка выбора целевой переменной
+            if (regressionTargetField.value === "") {
+                regressionTargetField.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                regressionTargetField.classList.remove('is-invalid');
+            }
+
+            // Проверка выбора признаков
+            const selectedFeatures = Array.from(regressionFeaturesField.selectedOptions).map(opt => opt.value);
+            if (selectedFeatures.length === 0) {
+                regressionFeaturesField.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                regressionFeaturesField.classList.remove('is-invalid');
+            }
+
+            // Проверка выбора модели
+            const selectedModels = regressionForm.querySelectorAll('input[name="model_types[]"]:checked');
+            if (selectedModels.length === 0) {
+                if (regModelError) {
+                    regModelError.style.display = 'block';
+                }
+                isValid = false;
+            } else {
+                if (regModelError) {
+                    regModelError.style.display = 'none';
+                }
+            }
+
+            // Проверка, что целевая переменная не входит в признаки
+            if (selectedFeatures.includes(regressionTargetField.value) && regressionTargetField.value !== "") {
+                if (regTargetInFeaturesError) {
+                    regTargetInFeaturesError.classList.remove('d-none');
+                }
+                isValid = false;
+            } else {
+                if (regTargetInFeaturesError) {
+                    regTargetInFeaturesError.classList.add('d-none');
+                }
+            }
+
+            if (!isValid) {
+                e.preventDefault();
+            }
+        });
+
+        // Валидация формы для классификации
+        const classificationTargetField = document.getElementById('targetColumnClass');
+        const classificationFeaturesField = document.getElementById('featureColumnsClass');
+        const classModelError = document.getElementById('classModelError');
+        const classTargetInFeaturesError = document.getElementById('classTargetInFeaturesError');
+
+        classificationForm.addEventListener('submit', function (e) {
+            let isValid = true;
+
+            // Проверка выбора целевой переменной
+            if (classificationTargetField.value === "") {
+                classificationTargetField.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                classificationTargetField.classList.remove('is-invalid');
+            }
+
+            // Проверка выбора признаков
+            const selectedFeatures = Array.from(classificationFeaturesField.selectedOptions).map(opt => opt.value);
+            if (selectedFeatures.length === 0) {
+                classificationFeaturesField.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                classificationFeaturesField.classList.remove('is-invalid');
+            }
+
+            // Проверка выбора модели
+            const selectedModels = classificationForm.querySelectorAll('input[name="model_types[]"]:checked');
+            if (selectedModels.length === 0) {
+                if (classModelError) {
+                    classModelError.style.display = 'block';
+                }
+                isValid = false;
+            } else {
+                if (classModelError) {
+                    classModelError.style.display = 'none';
+                }
+            }
+
+            // Проверка, что целевая переменная не входит в признаки
+            if (selectedFeatures.includes(classificationTargetField.value) && classificationTargetField.value !== "") {
+                if (classTargetInFeaturesError) {
+                    classTargetInFeaturesError.classList.remove('d-none');
+                }
+                isValid = false;
+            } else {
+                if (classTargetInFeaturesError) {
+                    classTargetInFeaturesError.classList.add('d-none');
+                }
+            }
+
+            if (!isValid) {
+                e.preventDefault();
+            }
+        });
+
+        // Предотвращение ошибок при загрузке страницы
+        try {
+            // Обработка смены значения целевой переменной для регрессии
+            if (regressionTargetField) {
+                regressionTargetField.addEventListener('change', function () {
+                    const selectedFeatures = Array.from(regressionFeaturesField.selectedOptions).map(opt => opt.value);
+
+                    if (selectedFeatures.includes(regressionTargetField.value) && regressionTargetField.value !== "") {
+                        regTargetInFeaturesError.classList.remove('d-none');
+                    } else {
+                        regTargetInFeaturesError.classList.add('d-none');
+                    }
+                });
+            }
+
+            // Обработка смены значения признаков для регрессии
+            if (regressionFeaturesField) {
+                regressionFeaturesField.addEventListener('change', function () {
+                    const selectedFeatures = Array.from(regressionFeaturesField.selectedOptions).map(opt => opt.value);
+
+                    if (selectedFeatures.includes(regressionTargetField.value) && regressionTargetField.value !== "") {
+                        regTargetInFeaturesError.classList.remove('d-none');
+                    } else {
+                        regTargetInFeaturesError.classList.add('d-none');
+                    }
+                });
+            }
+
+            // Обработка смены значения целевой переменной для классификации
+            if (classificationTargetField) {
+                classificationTargetField.addEventListener('change', function () {
+                    const selectedFeatures = Array.from(classificationFeaturesField.selectedOptions).map(opt => opt.value);
+
+                    if (selectedFeatures.includes(classificationTargetField.value) && classificationTargetField.value !== "") {
+                        classTargetInFeaturesError.classList.remove('d-none');
+                    } else {
+                        classTargetInFeaturesError.classList.add('d-none');
+                    }
+                });
+            }
+
+            // Обработка смены значения признаков для классификации
+            if (classificationFeaturesField) {
+                classificationFeaturesField.addEventListener('change', function () {
+                    const selectedFeatures = Array.from(classificationFeaturesField.selectedOptions).map(opt => opt.value);
+
+                    if (selectedFeatures.includes(classificationTargetField.value) && classificationTargetField.value !== "") {
+                        classTargetInFeaturesError.classList.remove('d-none');
+                    } else {
+                        classTargetInFeaturesError.classList.add('d-none');
+                    }
+                });
+            }
+        } catch (error) {
+            console.error("Ошибка инициализации обработчиков событий:", error);
+        }
+    });
+</script>
+{% endblock %}

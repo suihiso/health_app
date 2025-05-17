@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Визуализация данных{% endblock %}
+
+{% block content %}
+<h2>Визуализация данных</h2>
+
+<!-- Вывод сообщений об ошибках -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="mt-2">
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }}" role="alert">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<hr>
+
+<form method="POST">
+    <div class="row">
+        <!-- Левый столбец: выбор типа графика -->
+        <div class="col-md-6 border-end">
+            <h4>Выбор вида графика</h4>
+            <div class="mb-3">
+                <input type="radio" id="line" name="chart_type" value="line" onchange="updateFormFields()" {% if
+                    chart_type=='line' or not chart_type %}checked{% endif %}>
+                <label for="line" data-bs-toggle="tooltip" data-bs-placement="right"
+                    title="Для анализа изменений данных во времени">Линейный график</label><br>
+
+                <input type="radio" id="scatter" name="chart_type" value="scatter" onchange="updateFormFields()" {% if
+                    chart_type=='scatter' %}checked{% endif %}>
+                <label for="scatter" data-bs-toggle="tooltip" data-bs-placement="right"
+                    title="Для визуализации зависимости между двумя переменными">Диаграмма рассеяния</label><br>
+
+                <input type="radio" id="hist" name="chart_type" value="hist" onchange="updateFormFields()" {% if
+                    chart_type=='hist' %}checked{% endif %}>
+                <label for="hist" data-bs-toggle="tooltip" data-bs-placement="right"
+                    title="Для отображения распределения данных">Гистограмма</label><br>
+
+                <input type="radio" id="heatmap" name="chart_type" value="heatmap" onchange="updateFormFields()" {% if
+                    chart_type=='heatmap' %}checked{% endif %}>
+                <label for="heatmap" data-bs-toggle="tooltip" data-bs-placement="right"
+                    title="Для анализа корреляции между числовыми переменными (все числовые столбцы будут включены автоматически)">Тепловая
+                    карта</label><br>
+
+                <input type="radio" id="boxplot" name="chart_type" value="boxplot" onchange="updateFormFields()" {% if
+                    chart_type=='boxplot' %}checked{% endif %}>
+                <label for="boxplot" data-bs-toggle="tooltip" data-bs-placement="right"
+                    title="Для выявления выбросов и распределения данных">Боксплот</label><br>
+
+                <input type="radio" id="pie" name="chart_type" value="pie" onchange="updateFormFields()" {% if
+                    chart_type=='pie' %}checked{% endif %}>
+                <label for="pie" data-bs-toggle="tooltip" data-bs-placement="right"
+                    title="Для визуализации процентного состава категорий">Круговая диаграмма</label><br>
+
+                <input type="radio" id="bar" name="chart_type" value="bar" onchange="updateFormFields()" {% if
+                    chart_type=='bar' %}checked{% endif %}>
+                <label for="bar" data-bs-toggle="tooltip" data-bs-placement="right"
+                    title="Для сравнения категорий по числовым данным">Столбчатая диаграмма</label><br>
+
+                <input type="radio" id="area" name="chart_type" value="area" onchange="updateFormFields()" {% if
+                    chart_type=='area' %}checked{% endif %}>
+                <label for="area" data-bs-toggle="tooltip" data-bs-placement="right"
+                    title="Для отображения объема изменений данных с течением времени">Диаграмма с областями</label><br>
+            </div>
+        </div>
+
+        <!-- Правый столбец: выбор переменных -->
+        <div class="col-md-6" id="variables_column">
+            <h4>Выбор переменных</h4>
+            <div class="mb-3">
+                <label for="x_column" class="form-label">Переменная по оси X</label>
+                <select name="x_column" id="x_column" class="form-select">
+                    {% for column in columns %}
+                    <option value="{{ column }}" {% if x_column==column %}selected{% endif %}>{{ column }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3" id="y_column_field">
+                <label for="y_column" class="form-label">Переменная по оси Y</label>
+                <select name="y_column" id="y_column" class="form-select">
+                    {% for column in columns %}
+                    <option value="{{ column }}" {% if y_column==column %}selected{% endif %}>{{ column }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Информационное сообщение для тепловой карты -->
+            <div id="heatmap_info" style="display: none;" class="alert alert-info">
+                <strong>Тепловая карта:</strong> Будет построена матрица корреляции всех числовых столбцов.
+                Выбор отдельных переменных не требуется.
+            </div>
+        </div>
+    </div>
+
+    <hr class="mt-1 mb-3">
+
+    <div class="row">
+        <div class="col-12 text-center">
+            <button type="submit" class="btn btn-primary">Построить график</button>
+        </div>
+    </div>
+</form>
+
+<hr class="mt-3">
+
+{% if error %}
+<div class="alert alert-danger" role="alert">
+    <strong>Ошибка:</strong> {{ error }}
+</div>
+{% endif %}
+
+{% if image %}
+<div class="text-center">
+    <h4>Ваш график:</h4>
+    <img src="data:image/png;base64,{{ image }}" class="img-fluid" alt="График">
+
+    <div class="mt-3 mb-4">
+        <a href="{{ url_for('download_chart') }}" class="btn btn-success">Сохранить график</a>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    // Функция для обновления видимости полей в зависимости от выбранного типа графика
+    function updateFormFields() {
+        var chartType = document.querySelector('input[name="chart_type"]:checked').value;
+        var yColumnField = document.getElementById('y_column_field');
+        var xColumnField = document.getElementById('x_column');
+        var variablesColumn = document.getElementById('variables_column');
+        var heatmapInfo = document.getElementById('heatmap_info');
+
+        // Для тепловой карты скрываем выбор переменных и показываем информационное сообщение
+        if (chartType === 'heatmap') {
+            document.querySelectorAll('#variables_column .mb-3').forEach(function (el) {
+                el.style.display = 'none';
+            });
+            heatmapInfo.style.display = 'block';
+        } else {
+            document.querySelectorAll('#variables_column .mb-3').forEach(function (el) {
+                el.style.display = 'block';
+            });
+            heatmapInfo.style.display = 'none';
+
+            // Показываем поле для оси Y только для определенных типов графиков
+            if (chartType === 'line' || chartType === 'scatter' || chartType === 'area') {
+                yColumnField.style.display = 'block';
+            } else {
+                yColumnField.style.display = 'none';
+            }
+        }
+    }
+
+    // Инициализация состояния при загрузке страницы
+    window.onload = function () {
+        updateFormFields();
+        // Инициализация всплывающих подсказок
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    };
+</script>
+{% endblock %}

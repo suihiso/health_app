@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Выбор действия{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h2>Файл загружен!</h2>
+    <p>Выберите, что вы хотите сделать с загруженными данными:</p>
+
+    <!-- Кнопки для выбора действия -->
+    <a href="{{ url_for('explore') }}" class="btn btn-primary m-2">Обзор данных</a>
+    <a href="{{ url_for('process_data') }}" class="btn btn-primary m-2">Обработка данных</a>
+    <a href="{{ url_for('visualize') }}" class="btn btn-primary m-2">Визуализация данных</a>
+    <a href="{{ url_for('training_models') }}" class="btn btn-primary m-2">Обучение моделей прогнозирования</a>
+    <a href="{{ url_for('forecasting') }}" class="btn btn-primary m-2">Прогнозирование данных</a>
+</div>
+{% endblock %}
