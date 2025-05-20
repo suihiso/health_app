@@ -18,6 +18,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 from sklearn.preprocessing import StandardScaler, LabelEncoder
+from datetime import datetime
 
 # Настройки
 UPLOAD_FOLDER = 'uploads'
@@ -765,19 +766,45 @@ def download_cleaned_data():
 def forecasting():
     # Параметры пагинации
     page = request.args.get('page', 1, type=int)
-    per_page = 30  # Количество строк на странице
+    per_page = 10  # Количество строк на странице
     
     # Переменные для хранения сообщений об ошибках
     model_error = None
     data_error = None
     
     # Базовый контекст
-    context = {}
+    context = {
+        'metadata_info': 'Внимание! Для прогнозирования необходимо использовать модель с метаданными, созданную в разделе "Обучение модели прогнозирования".'
+    }
     
     if request.method == 'POST' and request.form.get('submit_action') == 'predict':
         # Проверка наличия загруженных файлов
         model_file = request.files.get('model_file')
         test_data_file = request.files.get('test_data_file')
+        
+        # Проверяем наличие файлов в текущем запросе и в сессии
+        has_model = (model_file and model_file.filename != '') or 'model_path' in session
+        has_data = (test_data_file and test_data_file.filename != '') or 'test_data_path' in session
+        
+        # Если нет ни модели, ни данных, показываем обе ошибки
+        if not has_model and not has_data:
+            model_error = 'Необходимо загрузить модель прогнозирования'
+            data_error = 'Необходимо загрузить инференсные данные'
+            context['model_error'] = model_error
+            context['data_error'] = data_error
+            return render_template('forecasting.html', **context)
+        
+        # Если нет только модели, показываем ошибку только для модели
+        if not has_model:
+            model_error = 'Необходимо загрузить модель прогнозирования'
+            context['model_error'] = model_error
+            return render_template('forecasting.html', **context)
+        
+        # Если нет только данных, показываем ошибку только для данных
+        if not has_data:
+            data_error = 'Необходимо загрузить инференсные данные'
+            context['data_error'] = data_error
+            return render_template('forecasting.html', **context)
         
         # Флаги для отслеживания необходимости загрузки новых файлов
         need_to_load_model = model_file and model_file.filename != ''
@@ -971,16 +998,18 @@ def forecasting():
                         except:
                             pass
                 
+                # Сохраняем копию исходных ненормализованных данных
+                X_inference_original = X_inference.copy()
+                
                 # Проверяем, нужно ли нормализовать данные (если модель обучалась на нормализованных данных)
-                # Проверяем, есть ли в метаданных информация о scaler
-                if model_data and 'scaler' in model_data and model_data['scaler'] is not None:
-                    # Используем сохраненный scaler для нормализации новых данных
-                    X_inference_scaled = model_data['scaler'].transform(X_inference)
-                    X_inference = X_inference_scaled
-                else:
-                    # Если scaler не сохранен, но мы знаем, что данные нормализовались при обучении,
-                    # нормализуем новые данные с нуля
-                    if model_data and model_data.get('normalized', False):
+                if model_data.get('normalized', False):
+                    # Проверяем, есть ли в метаданных информация о scaler
+                    if 'scaler' in model_data and model_data['scaler'] is not None:
+                        # Используем сохраненный scaler для нормализации новых данных
+                        X_inference = model_data['scaler'].transform(X_inference)
+                    else:
+                        # Если scaler не сохранен, но данные нормализовались при обучении,
+                        # нормализуем новые данные с нуля
                         scaler = StandardScaler()
                         X_inference = scaler.fit_transform(X_inference)
                 
@@ -992,47 +1021,19 @@ def forecasting():
                     data_error = f'Ошибка при прогнозировании. Данные не подходят для модели: {str(e)}'
                     context['data_error'] = data_error
                     return render_template('forecasting.html', **context)
-            else:
-                # Если не удалось определить требуемые признаки, используем все числовые столбцы
-                numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
-                
-                if not numeric_columns:
-                    data_error = 'Не удалось определить признаки для модели, и в датасете нет числовых столбцов'
-                    context['data_error'] = data_error
-                    return render_template('forecasting.html', **context)
-                
-                # Используем числовые столбцы для прогнозирования
-                X_inference = df[numeric_columns].copy()
-                
-                # Нормализуем данные, поскольку большинство моделей лучше работают с нормализованными данными
-                scaler = StandardScaler()
-                X_inference_scaled = scaler.fit_transform(X_inference)
-                
-                # Пробуем сделать прогноз
-                try:
-                    y_pred = model.predict(X_inference_scaled)
-                except Exception as e:
-                    data_error = f'Не удалось выполнить прогнозирование: {str(e)}'
-                    context['data_error'] = data_error
-                    return render_template('forecasting.html', **context)
+            
+            # Создаем новый датафрейм с исходными ненормализованными признаками
+            result_df = X_inference_original.copy()
             
             # Добавляем прогнозы в датафрейм
-            df['Prediction'] = y_pred
+            result_df['Prediction'] = y_pred
             
             # Сохраняем датафрейм с прогнозами для последующего использования
-            session['prediction_df'] = df.to_json()
+            session['prediction_df'] = result_df.to_json()
             
             # Определяем тип данных прогноза
-            is_classification = False
-            prediction_type = 'numeric'
-            
-            if hasattr(model, '_estimator_type'):
-                is_classification = model._estimator_type == 'classifier'
-            
-            if is_classification:
-                # Для задачи классификации - определяем тип предсказаний
-                if isinstance(y_pred[0], (str, bool)) or (hasattr(y_pred[0], 'dtype') and y_pred[0].dtype == 'object'):
-                    prediction_type = 'categorical'
+            is_classification = model_data.get('task_type') == 'classification'
+            prediction_type = 'categorical' if is_classification else 'numeric'
             
             # Сохраняем тип прогноза для отображения соответствующей гистограммы
             session['prediction_type'] = prediction_type
@@ -1047,7 +1048,7 @@ def forecasting():
     # Если есть данные прогнозов, отображаем их
     if 'prediction_df' in session:
         try:
-            # Загружаем датафрейм с прогнозами
+            # Загружаем датафрейм с прогнозами (только нужные признаки и прогнозы)
             prediction_df = pd.read_json(session['prediction_df'])
             
             # Получаем тип прогноза
@@ -1087,6 +1088,7 @@ def forecasting():
             
             # Строим гистограмму в зависимости от типа данных
             plt.figure(figsize=(10, 6))
+            
             
             if prediction_type == 'numeric':
                 # Гистограмма для числовых данных
@@ -1517,8 +1519,107 @@ def download_model():
         flash(f"Ошибка при скачивании модели: {str(e)}", 'danger')
         return redirect(url_for('training_models'))
 
+@app.route('/download_predictions')
+def download_predictions():
+    if 'prediction_df' not in session:
+        flash('Нет доступных прогнозов для скачивания', 'warning')
+        return redirect(url_for('forecasting'))
+    
+    try:
+        # Загружаем датафрейм с прогнозами
+        prediction_df = pd.read_json(session['prediction_df'])
+        
+        # Создаем временный буфер для записи Excel
+        output = BytesIO()
+        prediction_df.to_excel(output, index=False, engine='openpyxl')
+        output.seek(0)
+        
+        # Формируем имя файла с текущей датой и временем
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'predictions_{timestamp}.xlsx'
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        flash(f'Ошибка при скачивании прогнозов: {str(e)}', 'danger')
+        return redirect(url_for('forecasting'))
+
+@app.route('/get_original_dataset_name')
+def get_original_dataset_name():
+    if 'file_path' not in session:
+        return jsonify({'error': 'Файл не загружен'}), 400
+    
+    # Получаем имя файла из пути
+    dataset_name = os.path.basename(session['file_path'])
+    return jsonify({'dataset_name': dataset_name})
+
+@app.route('/use_predictions')
+def use_predictions():
+    if 'prediction_df' not in session:
+        flash('Нет доступных прогнозов для использования', 'warning')
+        return redirect(url_for('forecasting'))
+    
+    try:
+        # Загружаем датафрейм с прогнозами
+        prediction_df = pd.read_json(session['prediction_df'])
+        
+        # Сохраняем датафрейм с прогнозами как новый файл
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        new_file_path = os.path.join(app.config['UPLOAD_FOLDER'], f'predictions_{timestamp}.csv')
+        prediction_df.to_csv(new_file_path, index=False)
+        
+        # Обновляем путь к файлу в сессии
+        session['file_path'] = new_file_path
+        
+        # Очищаем данные о прогнозах
+        session.pop('prediction_df', None)
+        session.pop('prediction_type', None)
+        
+        return redirect(url_for('select_action'))
+    except Exception as e:
+        flash(f'Ошибка при использовании прогнозов: {str(e)}', 'danger')
+        return redirect(url_for('forecasting'))
+
+@app.route('/check_dataset')
+def check_dataset():
+    has_dataset = 'file_path' in session
+    return jsonify({'has_dataset': has_dataset})
+
+@app.route('/clear_predictions', methods=['POST'])
+def clear_predictions():
+    # Очищаем все данные, связанные с прогнозированием
+    session.pop('prediction_df', None)
+    session.pop('prediction_type', None)
+    session.pop('model_path', None)
+    session.pop('test_data_path', None)
+    
+    # Удаляем временные файлы, если они существуют
+    if 'model_path' in session and os.path.exists(session['model_path']):
+        try:
+            os.remove(session['model_path'])
+        except Exception:
+            pass
+    
+    if 'test_data_path' in session and os.path.exists(session['test_data_path']):
+        try:
+            os.remove(session['test_data_path'])
+        except Exception:
+            pass
+    
+    return jsonify({'status': 'success'})
+
 # Запуск сервера
 if __name__ == '__main__':
     if not os.path.exists(UPLOAD_FOLDER):
         os.makedirs(UPLOAD_FOLDER)
+    
+    # Проверяем наличие директории templates
+    templates_dir = 'templates'
+    if not os.path.exists(templates_dir):
+        os.makedirs(templates_dir)
+    
     app.run(debug=True)

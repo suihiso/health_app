@@ -19,8 +19,50 @@
 {% endif %}
 {% endwith %}
 
+<!-- Модальное окно подтверждения для кнопки "Выбор действия" -->
+<div class="modal fade" id="actionConfirmModal" tabindex="-1" aria-labelledby="actionConfirmModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="actionConfirmModalLabel">Подтверждение</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Внимание! Вы не загружали данные для анализа, поэтому будете переведены на страницу загрузки файла.
+                Подтвердить действие?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Нет</button>
+                <button type="button" class="btn btn-primary" onclick="redirectToIndex()">Да</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно подтверждения для кнопки "ЗДЕСЬ" -->
+<div class="modal fade" id="trainingConfirmModal" tabindex="-1" aria-labelledby="trainingConfirmModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="trainingConfirmModalLabel">Подтверждение</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Внимание! Вы пока не загружали никаких данных, поэтому будете перенаправлены на страницу загрузки
+                данных. Подтвердить действие?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Нет</button>
+                <button type="button" class="btn btn-primary" onclick="redirectToIndex()">Да</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Единая форма для загрузки файлов и прогнозирования -->
-<form method="POST" enctype="multipart/form-data" id="prediction-form">
+<form method="POST" enctype="multipart/form-data" id="prediction-form" onsubmit="return validateForm()">
     <div class="row">
         <!-- Левая колонка: Загрузка модели -->
         <div class="col-md-6 border-end">
@@ -28,15 +70,19 @@
             <p>Загрузите файл с обученной моделью в формате JOBLIB:</p>
 
             <div class="input-group mb-3">
-                <input type="file" class="form-control" name="model_file" id="model_file" accept=".joblib">
+                <input type="file" class="form-control" name="model_file" id="model_file" accept=".joblib"
+                    onchange="updateFileDisplay(this, 'model-file-name')">
+                <input type="hidden" name="model_file_name" id="model-file-name">
             </div>
 
             <!-- Блок для предупреждений о незагруженной модели -->
-            {% if model_error %}
-            <div class="alert alert-danger mt-2" id="model-error">
+            <div class="alert alert-danger mt-2" id="model-error" style="display: none;">
+                {% if model_error %}
                 {{ model_error }}
+                {% else %}
+                Необходимо загрузить модель прогнозирования
+                {% endif %}
             </div>
-            {% endif %}
 
             <div class="card bg-light mb-3">
                 <div class="card-body">
@@ -62,15 +108,18 @@
 
             <div class="input-group mb-3">
                 <input type="file" class="form-control" name="test_data_file" id="test_data_file"
-                    accept=".csv, .xls, .xlsx">
+                    accept=".csv, .xls, .xlsx" onchange="updateFileDisplay(this, 'data-file-name')">
+                <input type="hidden" name="test_data_file_name" id="data-file-name">
             </div>
 
             <!-- Блок для предупреждений о незагруженных данных -->
-            {% if data_error %}
-            <div class="alert alert-danger mt-2" id="data-error">
+            <div class="alert alert-danger mt-2" id="data-error" style="display: none;">
+                {% if data_error %}
                 {{ data_error }}
+                {% else %}
+                Необходимо загрузить инференсные данные
+                {% endif %}
             </div>
-            {% endif %}
 
             <div class="card bg-light mb-3">
                 <div class="card-body">
@@ -115,38 +164,52 @@
     </div>
 
     <!-- Липкое меню с разделами -->
-    <div class="anchor-nav mb-4">
-        <a href="#predictions-table" class="btn btn-outline-primary btn-sm">Таблица прогнозов</a>
-        <a href="#predictions-stats" class="btn btn-outline-primary btn-sm">Статистика</a>
-        <a href="#predictions-hist" class="btn btn-outline-primary btn-sm">Гистограмма распределений</a>
+    <div class="anchor-nav mb-4 d-flex justify-content-between">
+        <!-- Кнопки с разделами -->
+        <div>
+            <a href="#predictions-table" class="btn btn-outline-primary btn-sm">📋 Таблица прогнозов</a>
+            <a href="#predictions-stats" class="btn btn-outline-primary btn-sm">📊 Статистика</a>
+            <a href="#predictions-hist" class="btn btn-outline-primary btn-sm">📈 Гистограмма распределений</a>
+        </div>
+        <!-- Кнопки скачивания и использования -->
+        <div>
+            <a href="{{ url_for('download_predictions') }}" class="btn btn-success btn-sm" data-bs-toggle="tooltip"
+                title="Скачать таблицу прогнозов">
+                <i class="fas fa-download"></i> Скачать прогнозы
+            </a>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="tooltip"
+                title="Использовать таблицу прогнозов для анализа данных" onclick="confirmUsePredictions()">
+                <i class="fas fa-chart-line"></i> Использовать прогнозы
+            </button>
+        </div>
+    </div>
+
+    <!-- Модальное окно подтверждения -->
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmModalLabel">Подтверждение</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Внимание! Вы будете перенаправлены на страницу выбора действий с прогнозами.
+                    При подтверждении перехода информация о загруженных вами ранее данных <span
+                        id="originalDatasetName"></span>
+                    будет утеряна. Если вы захотите продолжить работу с ними, то необходимо будет загрузить
+                    их снова в разделе "Загрузка новых данных". Подтвердить действие?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Нет</button>
+                    <button type="button" class="btn btn-primary" onclick="usePredictions()">Да</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Таблица прогнозов -->
     <div id="predictions-table">
-        <h4>Таблица прогнозов</h4>
-
-        <!-- Пагинация сверху -->
-        {% if total_pages > 1 %}
-        <nav aria-label="Навигация по таблице прогнозов" class="mb-3">
-            <ul class="pagination justify-content-center">
-                <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
-                    <a class="page-link"
-                        href="{{ url_for('forecasting', page=current_page-1) if current_page > 1 else '#' }}">Предыдущая</a>
-                </li>
-
-                {% for p in range(1, total_pages + 1) %}
-                <li class="page-item {% if p == current_page %}active{% endif %}">
-                    <a class="page-link" href="{{ url_for('forecasting', page=p) }}">{{ p }}</a>
-                </li>
-                {% endfor %}
-
-                <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
-                    <a class="page-link"
-                        href="{{ url_for('forecasting', page=current_page+1) if current_page < total_pages else '#' }}">Следующая</a>
-                </li>
-            </ul>
-        </nav>
-        {% endif %}
+        <h4>📋 Таблица прогнозов</h4>
 
         <!-- Таблица -->
         <div class="table-responsive">
@@ -155,25 +218,34 @@
 
         <!-- Пагинация снизу -->
         {% if total_pages > 1 %}
-        <nav aria-label="Навигация по таблице прогнозов" class="mt-3">
-            <ul class="pagination justify-content-center">
-                <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
-                    <a class="page-link"
-                        href="{{ url_for('forecasting', page=current_page-1) if current_page > 1 else '#' }}">Предыдущая</a>
-                </li>
+        <div class="d-flex justify-content-between align-items-center my-1">
+            <!-- Кнопки "Первая страница" и "Последняя страница" выровненные по левой стороне -->
+            <div class="btn-group">
+                <a href="{{ url_for('forecasting', page=1) }}"
+                    class="btn btn-outline-primary {% if current_page == 1 %}disabled{% endif %}">
+                    Первая страница
+                </a>
+                <a href="{{ url_for('forecasting', page=total_pages) }}"
+                    class="btn btn-outline-primary {% if current_page == total_pages %}disabled{% endif %}">
+                    Последняя страница
+                </a>
+            </div>
 
-                {% for p in range(1, total_pages + 1) %}
-                <li class="page-item {% if p == current_page %}active{% endif %}">
-                    <a class="page-link" href="{{ url_for('forecasting', page=p) }}">{{ p }}</a>
-                </li>
-                {% endfor %}
-
-                <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
-                    <a class="page-link"
-                        href="{{ url_for('forecasting', page=current_page+1) if current_page < total_pages else '#' }}">Следующая</a>
-                </li>
-            </ul>
-        </nav>
+            <!-- Информация о строках и кнопки "Предыдущая/Следующая страница" выровненные по правой стороне -->
+            <div class="d-flex align-items-center">
+                <span class="me-3">Страница {{ current_page }} из {{ total_pages }}</span>
+                <div class="btn-group">
+                    <a href="{{ url_for('forecasting', page=current_page-1) }}"
+                        class="btn btn-outline-primary {% if current_page == 1 %}disabled{% endif %}">
+                        Предыдущая страница
+                    </a>
+                    <a href="{{ url_for('forecasting', page=current_page+1) }}"
+                        class="btn btn-outline-primary {% if current_page == total_pages %}disabled{% endif %}">
+                        Следующая страница
+                    </a>
+                </div>
+            </div>
+        </div>
         {% endif %}
     </div>
 
@@ -181,7 +253,7 @@
 
     <!-- Статистика -->
     <div id="predictions-stats">
-        <h4>Статистика</h4>
+        <h4>📊 Статистика</h4>
         <div class="table-responsive">
             {{ stats_table | safe }}
         </div>
@@ -191,7 +263,7 @@
 
     <!-- Гистограмма распределений -->
     <div id="predictions-hist">
-        <h4>Гистограмма распределений</h4>
+        <h4>📈 Гистограмма распределений</h4>
         <div class="text-center">
             <img src="data:image/png;base64,{{ hist_image }}" class="img-fluid border"
                 alt="Гистограмма распределения прогнозов">
@@ -199,5 +271,171 @@
     </div>
 </div>
 {% endif %}
+
+<style>
+    /* Выравнивание заголовков таблиц по левому краю */
+    .table th {
+        text-align: left !important;
+    }
+
+    /* Стили для кнопок пагинации */
+    .btn-group .btn {
+        padding: 0.375rem 0.75rem;
+    }
+
+    /* Стили для якорей и секций */
+    #predictions-table,
+    #predictions-stats,
+    #predictions-hist {
+        scroll-margin-top: 80px;
+    }
+
+    /* Отступы для секций */
+    hr+h4 {
+        margin-top: 20px;
+        padding-top: 10px;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Инициализация всплывающих подсказок
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+
+        // Проверяем, есть ли параметр page в URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const page = urlParams.get('page');
+
+        // Если есть параметр page, значит это переход по пагинации
+        if (page) {
+            // Плавно прокручиваем к таблице прогнозов
+            document.getElementById('predictions-table').scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+
+        // Добавляем обработчики для кнопок
+        const actionButton = document.querySelector('a[href="{{ url_for("select_action") }}"]');
+        if (actionButton) {
+            actionButton.addEventListener('click', function (e) {
+                e.preventDefault();
+                checkDatasetAndShowModal('actionConfirmModal');
+            });
+        }
+
+        const trainingLink = document.querySelector('a[href="{{ url_for("training_models") }}"]');
+        if (trainingLink) {
+            trainingLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                checkDatasetAndShowModal('trainingConfirmModal');
+            });
+        }
+
+        // Добавляем обработчик для очистки результатов при уходе со страницы
+        window.addEventListener('beforeunload', function () {
+            // Отправляем запрос на очистку результатов
+            fetch('/clear_predictions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            }).catch(error => console.error('Ошибка при очистке результатов:', error));
+        });
+    });
+
+    // Функция для проверки наличия датасета и показа модального окна
+    function checkDatasetAndShowModal(modalId) {
+        fetch('/check_dataset')
+            .then(response => response.json())
+            .then(data => {
+                if (!data.has_dataset) {
+                    var modal = new bootstrap.Modal(document.getElementById(modalId));
+                    modal.show();
+                } else {
+                    // Если датасет загружен, переходим по обычной ссылке
+                    if (modalId === 'actionConfirmModal') {
+                        window.location.href = "{{ url_for('select_action') }}";
+                    } else {
+                        window.location.href = "{{ url_for('training_models') }}";
+                    }
+                }
+            });
+    }
+
+    // Функция для перенаправления на главную страницу
+    function redirectToIndex() {
+        window.location.href = "{{ url_for('index') }}";
+    }
+
+    // Функция для отображения модального окна подтверждения
+    function confirmUsePredictions() {
+        // Получаем имя оригинального датасета из сессии
+        fetch('/get_original_dataset_name')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('originalDatasetName').textContent = data.dataset_name;
+                var modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+                modal.show();
+            });
+    }
+
+    // Функция для использования прогнозов
+    function usePredictions() {
+        window.location.href = '/use_predictions';
+    }
+
+    // Функция для обновления отображения имени файла
+    function updateFileDisplay(input, hiddenInputId) {
+        const hiddenInput = document.getElementById(hiddenInputId);
+        if (input.files.length > 0) {
+            hiddenInput.value = input.files[0].name;
+        } else {
+            hiddenInput.value = '';
+        }
+    }
+
+    // Функция для проверки формы перед отправкой
+    function validateForm() {
+        const modelFile = document.getElementById('model_file');
+        const dataFile = document.getElementById('test_data_file');
+        const modelError = document.getElementById('model-error');
+        const dataError = document.getElementById('data-error');
+
+        // Очищаем предыдущие ошибки
+        if (modelError) modelError.style.display = 'none';
+        if (dataError) dataError.style.display = 'none';
+
+        let hasError = false;
+
+        // Проверяем наличие файла модели
+        if (!modelFile.files.length) {
+            if (modelError) {
+                modelError.style.display = 'block';
+                modelError.textContent = 'Необходимо загрузить модель прогнозирования';
+            }
+            hasError = true;
+        }
+
+        // Проверяем наличие файла данных
+        if (!dataFile.files.length) {
+            if (dataError) {
+                dataError.style.display = 'block';
+                dataError.textContent = 'Необходимо загрузить инференсные данные';
+            }
+            hasError = true;
+        }
+
+        // Если есть ошибки, не отправляем форму
+        if (hasError) {
+            return false;
+        }
+
+        return true;
+    }
+</script>
 
 {% endblock %}

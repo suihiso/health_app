@@ -21,6 +21,13 @@
             <button type="submit" class="btn btn-primary btn-lg">Загрузить файл</button>
         </form>
 
+        <hr class="my-4">
+
+        <div class="mt-4">
+            <p>У вас уже есть обученная модель для прогнозирования?</p>
+            <a href="{{ url_for('forecasting') }}" class="btn btn-success btn-lg">Перейти к прогнозированию</a>
+        </div>
+
         <!-- Блок для отображения флеш-сообщений -->
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
