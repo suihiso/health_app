@@ -234,8 +234,8 @@ def explore():
                 anomalies.append({
                     'Колонка': column,
                     'Количество аномалий': outliers_count,
-                    'Нижняя граница': round(lower_bound, 2),
-                    'Верхняя граница': round(upper_bound, 2)
+                    'Нижняя граница IQR': round(lower_bound, 2),
+                    'Верхняя граница IQR': round(upper_bound, 2)
                 })
         
         # Создаем DataFrame с аномалиями и конвертируем в HTML
@@ -517,38 +517,116 @@ def process_data():
         if request.method == 'POST':
             action = request.form.get('action')
 
-            # Удалить строки с пропусками
-            if action == 'drop_na':
-                df.dropna(inplace=True)
-                flash('Строки с пропусками были удалены', 'success')
+            # Удалить строки с пропусками в выбранном столбце
+            if action == 'drop_na_rows':
+                try:
+                    na_column = request.form.get('na_column')
+                    if not na_column:
+                        flash("Не выбран столбец для обработки пропусков", 'danger')
+                    else:
+                        # Проверяем наличие пропусков
+                        if df[na_column].isna().any():
+                            original_count = len(df)
+                            df = df.dropna(subset=[na_column])
+                            removed_count = original_count - len(df)
+                            flash(f'Удалено {removed_count} строк с пропусками в столбце "{na_column}"', 'success')
+                        else:
+                            flash(f'Пропуски в столбце "{na_column}" не найдены', 'info')
+                except Exception as e:
+                    flash(f"Ошибка при удалении строк с пропусками: {e}", 'danger')
 
             # Заполнить пропуски средним значением
-            elif action == 'fill_mean':
+            elif action == 'fill_na_mean':
                 try:
-                    for col in df.select_dtypes(include=['float64', 'int64']).columns:
-                        df[col].fillna(df[col].mean(), inplace=True)
-                    flash('Пропуски были заполнены средним значением', 'success')
+                    na_column = request.form.get('na_column')
+                    if not na_column:
+                        flash("Не выбран столбец для обработки пропусков", 'danger')
+                    else:
+                        if df[na_column].dtype in ['float64', 'int64']:
+                            # Проверяем наличие пропусков
+                            if df[na_column].isna().any():
+                                mean_value = df[na_column].mean()
+                                df[na_column].fillna(mean_value, inplace=True)
+                                flash(f'Пропуски в столбце "{na_column}" были заполнены средним значением ({mean_value:.2f})', 'success')
+                            else:
+                                flash(f'Пропуски в столбце "{na_column}" не найдены', 'info')
+                        else:
+                            flash(f'Столбец "{na_column}" содержит нечисловые данные. Заполнение средним значением невозможно.', 'danger')
                 except Exception as e:
                     flash(f"Ошибка при заполнении пропусков средним значением: {e}", 'danger')
 
             # Заполнить пропуски медианой
-            elif action == 'fill_median':
+            elif action == 'fill_na_median':
                 try:
-                    for col in df.select_dtypes(include=['float64', 'int64']).columns:
-                        df[col].fillna(df[col].median(), inplace=True)
-                    flash('Пропуски были заполнены медианой', 'success')
+                    na_column = request.form.get('na_column')
+                    if not na_column:
+                        flash("Не выбран столбец для обработки пропусков", 'danger')
+                    else:
+                        if df[na_column].dtype in ['float64', 'int64']:
+                            # Проверяем наличие пропусков
+                            if df[na_column].isna().any():
+                                median_value = df[na_column].median()
+                                df[na_column].fillna(median_value, inplace=True)
+                                flash(f'Пропуски в столбце "{na_column}" были заполнены медианой ({median_value:.2f})', 'success')
+                            else:
+                                flash(f'Пропуски в столбце "{na_column}" не найдены', 'info')
+                        else:
+                            flash(f'Столбец "{na_column}" содержит нечисловые данные. Заполнение медианой невозможно.', 'danger')
                 except Exception as e:
                     flash(f"Ошибка при заполнении пропусков медианой: {e}", 'danger')
-                
+
             # Заполнить пропуски модой
-            elif action == 'fill_mode':
+            elif action == 'fill_na_mode':
                 try:
-                    for col in df.columns:
-                        if df[col].dtype in ['float64', 'int64', 'object']:
-                            df[col].fillna(df[col].mode()[0] if not df[col].mode().empty else None, inplace=True)
-                    flash('Пропуски были заполнены модой', 'success')
+                    na_column = request.form.get('na_column')
+                    if not na_column:
+                        flash("Не выбран столбец для обработки пропусков", 'danger')
+                    else:
+                        # Проверяем наличие пропусков
+                        if df[na_column].isna().any():
+                            mode_value = df[na_column].mode()[0] if not df[na_column].mode().empty else None
+                            if mode_value is not None:
+                                df[na_column].fillna(mode_value, inplace=True)
+                                flash(f'Пропуски в столбце "{na_column}" были заполнены модой ({mode_value})', 'success')
+                            else:
+                                flash(f'Не удалось определить моду для столбца "{na_column}"', 'danger')
+                        else:
+                            flash(f'Пропуски в столбце "{na_column}" не найдены', 'info')
                 except Exception as e:
                     flash(f"Ошибка при заполнении пропусков модой: {e}", 'danger')
+
+            # Заполнить пропуски значением "Неизвестно"
+            elif action == 'fill_na_unknown':
+                try:
+                    na_column = request.form.get('na_column')
+                    if not na_column:
+                        flash("Не выбран столбец для обработки пропусков", 'danger')
+                    else:
+                        if df[na_column].dtype not in ['float64', 'int64']:
+                            # Проверяем наличие пропусков
+                            if df[na_column].isna().any():
+                                df[na_column].fillna("Неизвестно", inplace=True)
+                                flash(f'Пропуски в столбце "{na_column}" были заполнены значением "Неизвестно"', 'success')
+                            else:
+                                flash(f'Пропуски в столбце "{na_column}" не найдены', 'info')
+                        else:
+                            flash(f'Столбец "{na_column}" содержит числовые данные. Заполнение значением "Неизвестно" невозможно.', 'danger')
+                except Exception as e:
+                    flash(f"Ошибка при заполнении пропусков значением 'Неизвестно': {e}", 'danger')
+
+            # Быстрое удаление всех строк с пропусками
+            elif action == 'drop_all_na':
+                try:
+                    # Проверяем наличие пропусков
+                    if df.isna().any().any():
+                        original_count = len(df)
+                        df.dropna(inplace=True)
+                        removed_count = original_count - len(df)
+                        flash(f'Удалено {removed_count} строк, содержащих пропуски в любом столбце', 'success')
+                    else:
+                        flash('Пропуски в данных не найдены', 'info')
+                except Exception as e:
+                    flash(f"Ошибка при удалении строк с пропусками: {e}", 'danger')
 
             # Удалить выбранные столбцы
             elif action == 'drop_columns':
@@ -586,71 +664,8 @@ def process_data():
                 except Exception as e:
                     flash(f"Ошибка при фильтрации данных: {e}", 'danger')
                 
-            # Удаление строк с выбранным значением
-            elif action == 'delete_value':
-                try:
-                    value_column = request.form.get('value_column')
-                    selected_values = request.form.getlist('column_values')
-                    
-                    if not value_column or not selected_values:
-                        flash("Не выбран столбец или значения", 'danger')
-                    else:
-                        # Преобразуем значения к типу данных столбца
-                        if df[value_column].dtype in ['int64', 'float64']:
-                            selected_values = [float(val) for val in selected_values]
-                        
-                        # Проверяем, сколько строк останется после удаления
-                        remaining_rows = len(df[~df[value_column].isin(selected_values)])
-                        
-                        if remaining_rows == 0:
-                            flash("Удаление отменено: после удаления выбранных значений таблица станет пустой", 'danger')
-                        else:
-                            # Фильтрация датасета
-                            original_count = len(df)
-                            df = df[~df[value_column].isin(selected_values)]
-                            deleted_count = original_count - len(df)
-                            
-                            if deleted_count > 0:
-                                flash(f'Удалено {deleted_count} строк со значениями {", ".join(map(str, selected_values))} в столбце "{value_column}"', 'success')
-                            else:
-                                flash(f'Строки со значениями {", ".join(map(str, selected_values))} в столбце "{value_column}" не найдены', 'info')
-                except Exception as e:
-                    flash(f"Ошибка при удалении строк: {e}", 'danger')
-                
-            # Удалить все значения, кроме выбранных
-            elif action == 'keep_only_value':
-                try:
-                    value_column = request.form.get('value_column')
-                    selected_values = request.form.getlist('column_values')
-                    
-                    if not value_column or not selected_values:
-                        flash("Не выбран столбец или значения", 'danger')
-                    else:
-                        # Преобразуем значения к типу данных столбца
-                        if df[value_column].dtype in ['int64', 'float64']:
-                            selected_values = [float(val) for val in selected_values]
-                        
-                        # Проверяем, сколько строк останется после фильтрации
-                        remaining_rows = len(df[df[value_column].isin(selected_values)])
-                        
-                        if remaining_rows == 0:
-                            flash("Удаление отменено: после удаления всех значений, кроме выбранных, таблица станет пустой", 'danger')
-                        else:
-                            # Фильтрация датасета, оставляем только строки с выбранными значениями
-                            original_count = len(df)
-                            df = df[df[value_column].isin(selected_values)]
-                            kept_count = len(df)
-                            
-                            if kept_count > 0:
-                                flash(f'Оставлено {kept_count} строк со значениями {", ".join(map(str, selected_values))} в столбце "{value_column}"', 'success')
-                            else:
-                                df = original_df.copy()
-                                flash(f'Строки со значениями {", ".join(map(str, selected_values))} в столбце "{value_column}" не найдены. Действие отменено.', 'danger')
-                except Exception as e:
-                    flash(f"Ошибка при фильтрации данных: {e}", 'danger')
-                
             # Удаление строк с выбросами
-            elif action == 'remove_outliers':
+            elif action == 'remove_outlier_rows':
                 try:
                     outlier_column = request.form.get('outlier_column')
                     
@@ -681,9 +696,43 @@ def process_data():
                             flash(f'Выбросы в столбце "{outlier_column}" не найдены', 'info')
                 except Exception as e:
                     flash(f"Ошибка при удалении выбросов: {e}", 'danger')
-                
+
+            # Замена выбросов на среднее значение
+            elif action == 'replace_outliers_mean':
+                try:
+                    outlier_column = request.form.get('outlier_column')
+                    
+                    if not outlier_column or outlier_column not in numeric_columns:
+                        flash("Не выбран числовой столбец для замены выбросов", 'danger')
+                    else:
+                        # Определяем выбросы с помощью межквартильного размаха (IQR)
+                        Q1 = df[outlier_column].quantile(0.25)
+                        Q3 = df[outlier_column].quantile(0.75)
+                        IQR = Q3 - Q1
+                        
+                        # Определяем границы выбросов
+                        lower_bound = Q1 - 1.5 * IQR
+                        upper_bound = Q3 + 1.5 * IQR
+                        
+                        # Находим выбросы
+                        outliers = df[(df[outlier_column] < lower_bound) | (df[outlier_column] > upper_bound)]
+                        outliers_count = len(outliers)
+                        
+                        if outliers_count > 0:
+                            # Вычисляем среднее значение для замены выбросов
+                            mean_value = df[outlier_column].mean()
+                            
+                            # Заменяем выбросы на среднее
+                            df.loc[(df[outlier_column] < lower_bound) | (df[outlier_column] > upper_bound), outlier_column] = mean_value
+                            
+                            flash(f'Заменено {outliers_count} выбросов на среднее значение ({mean_value:.2f}) в столбце "{outlier_column}"', 'success')
+                        else:
+                            flash(f'Выбросы в столбце "{outlier_column}" не найдены', 'info')
+                except Exception as e:
+                    flash(f"Ошибка при замене выбросов: {e}", 'danger')
+
             # Замена выбросов на медиану
-            elif action == 'replace_outliers':
+            elif action == 'replace_outliers_median':
                 try:
                     outlier_column = request.form.get('outlier_column')
                     
@@ -710,11 +759,76 @@ def process_data():
                             # Заменяем выбросы на медиану
                             df.loc[(df[outlier_column] < lower_bound) | (df[outlier_column] > upper_bound), outlier_column] = median_value
                             
-                            flash(f'Заменено {outliers_count} выбросов на медиану ({median_value}) в столбце "{outlier_column}"', 'success')
+                            flash(f'Заменено {outliers_count} выбросов на медиану ({median_value:.2f}) в столбце "{outlier_column}"', 'success')
                         else:
                             flash(f'Выбросы в столбце "{outlier_column}" не найдены', 'info')
                 except Exception as e:
                     flash(f"Ошибка при замене выбросов: {e}", 'danger')
+
+            # Замена выбросов на моду
+            elif action == 'replace_outliers_mode':
+                try:
+                    outlier_column = request.form.get('outlier_column')
+                    
+                    if not outlier_column or outlier_column not in numeric_columns:
+                        flash("Не выбран числовой столбец для замены выбросов", 'danger')
+                    else:
+                        # Определяем выбросы с помощью межквартильного размаха (IQR)
+                        Q1 = df[outlier_column].quantile(0.25)
+                        Q3 = df[outlier_column].quantile(0.75)
+                        IQR = Q3 - Q1
+                        
+                        # Определяем границы выбросов
+                        lower_bound = Q1 - 1.5 * IQR
+                        upper_bound = Q3 + 1.5 * IQR
+                        
+                        # Находим выбросы
+                        outliers = df[(df[outlier_column] < lower_bound) | (df[outlier_column] > upper_bound)]
+                        outliers_count = len(outliers)
+                        
+                        if outliers_count > 0:
+                            # Вычисляем моду для замены выбросов
+                            mode_value = df[outlier_column].mode()[0]
+                            
+                            # Заменяем выбросы на моду
+                            df.loc[(df[outlier_column] < lower_bound) | (df[outlier_column] > upper_bound), outlier_column] = mode_value
+                            
+                            flash(f'Заменено {outliers_count} выбросов на моду ({mode_value:.2f}) в столбце "{outlier_column}"', 'success')
+                        else:
+                            flash(f'Выбросы в столбце "{outlier_column}" не найдены', 'info')
+                except Exception as e:
+                    flash(f"Ошибка при замене выбросов: {e}", 'danger')
+
+            # Быстрое удаление всех строк с выбросами
+            elif action == 'remove_all_outliers':
+                try:
+                    # Проверяем наличие числовых столбцов
+                    if not numeric_columns:
+                        flash("В датасете нет числовых столбцов для обработки выбросов", 'danger')
+                    else:
+                        # Сохраняем количество строк до фильтрации
+                        original_count = len(df)
+                        
+                        # Для каждого числового столбца определяем и удаляем выбросы
+                        for column in numeric_columns:
+                            Q1 = df[column].quantile(0.25)
+                            Q3 = df[column].quantile(0.75)
+                            IQR = Q3 - Q1
+                            lower_bound = Q1 - 1.5 * IQR
+                            upper_bound = Q3 + 1.5 * IQR
+                            
+                            # Удаляем выбросы
+                            df = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
+                        
+                        # Количество удаленных строк
+                        removed_count = original_count - len(df)
+                        
+                        if removed_count > 0:
+                            flash(f'Удалено {removed_count} строк, содержащих выбросы в любом числовом столбце', 'success')
+                        else:
+                            flash('Выбросы в числовых столбцах не найдены', 'info')
+                except Exception as e:
+                    flash(f"Ошибка при удалении выбросов: {e}", 'danger')
 
             # Сохраняем изменения
             try:
@@ -1537,6 +1651,9 @@ def download_predictions():
         # Формируем имя файла с текущей датой и временем
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f'predictions_{timestamp}.xlsx'
+        
+        # Сохраняем прогнозы обратно в сессию после скачивания
+        session['prediction_df'] = prediction_df.to_json()
         
         return send_file(
             output,

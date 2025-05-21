@@ -10,10 +10,12 @@
         nav.navbar {
             position: sticky;
             top: 0;
-            background-color: #9ccaca !important;
+            background-color: #3d7070 !important;
             /* Серый фон */
             z-index: 100;
             border-bottom: 1px solid #ddd;
+            padding-left: 25px;
+            padding-right: 25px;
         }
 
         /* Липкое меню */
@@ -34,6 +36,21 @@
         .anchor-nav .ml-auto {
             margin-left: auto;
         }
+
+        .navbar-brand {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .nav-link {
+            color: #ffffff;
+        }
+
+        .navbar-brand:hover,
+        .nav-link:hover {
+            color: #d6e5e5;
+        }
     </style>
 </head>
 
@@ -42,17 +59,14 @@
     <!-- Шапка сайта (липкая с серым фоном) -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('index') }}">Анализ данных о здоровье населения</a>
+            <a class="navbar-brand" href="{{ url_for('index') }}">AnalyticsMed</a>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}">Загрузка данных</a>
+                        <a class="nav-link" href="{{ url_for('index') }}">Загрузка новых данных</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('select_action') }}">Выбор действия</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('forecasting') }}">Прогнозирование</a>
+                        <a class="nav-link" href="{{ url_for('select_action') }}">Выбор инструмента</a>
                     </li>
                 </ul>
             </div>

@@ -30,35 +30,60 @@
 {% endif %}
 {% endwith %}
 
-<!-- Структура с тремя столбцами: Фильтрация данных, Работа со строками, Удаление столбцов -->
+<!-- Структура с тремя столбцами: Обработка пропусков, Обработка строк, Обработка аномальных значений -->
 <div class="row">
-    <!-- Первый столбец: Фильтрация данных -->
+    <!-- Первый столбец: Обработка пропусков -->
     <div class="col-md-4 mb-4 border-end d-flex flex-column justify-content-center align-items-center">
-        <h4 id="filter">Фильтрация данных</h4>
+        <h4 id="drop_na">Обработка пропусков</h4>
         <form method="post" class="text-center">
-            <label for="filter_column" class="form-label">Выберите колонку для фильтрации:</label>
-            <select name="filter_column" class="form-select">
+            <label for="na_column" class="form-label">Выберите столбец, в котором содержатся пропуски:</label>
+            <select name="na_column" id="na_column" class="form-select mb-3">
                 {% for column in columns %}
                 <option value="{{ column }}">{{ column }}</option>
                 {% endfor %}
             </select>
 
-            <select name="condition" class="form-select mt-2">
-                <option value="==">Равно</option>
-                <option value=">">Больше</option>
-                <option value="<">Меньше</option>
-                <option value="!=">Не равно</option>
-            </select>
+            <button type="submit" name="action" value="drop_na_rows" class="btn btn-danger mb-2"
+                data-bs-toggle="tooltip" title="Удаление всех строк, содержащих пропуски в выбранном столбце">
+                Удаление строк
+            </button>
 
-            <input type="text" name="value" class="form-control mt-2" placeholder="Введите значение для фильтрации">
+            <button type="submit" name="action" value="fill_na_mean" class="btn btn-warning mb-2"
+                data-bs-toggle="tooltip"
+                title="Замена пропусков на среднее значение столбца (только для числовых данных)">
+                Замена на среднее
+            </button>
 
-            <button type="submit" name="action" value="filter" class="btn btn-primary mt-3">Фильтровать данные</button>
+            <button type="submit" name="action" value="fill_na_median" class="btn btn-info mb-2"
+                data-bs-toggle="tooltip"
+                title="Замена пропусков на медианное значение столбца (только для числовых данных)">
+                Замена на медиану
+            </button>
+
+            <button type="submit" name="action" value="fill_na_mode" class="btn btn-primary mb-2"
+                data-bs-toggle="tooltip"
+                title="Замена пропусков на наиболее часто встречаемое значение (работает для любых типов данных)">
+                Замена на моду
+            </button>
+
+            <button type="submit" name="action" value="fill_na_unknown" class="btn btn-secondary mb-2"
+                data-bs-toggle="tooltip"
+                title="Замена пропусков на значение 'Неизвестно' (только для нечисловых данных)">
+                Замена на "Неизвестно"
+            </button>
+
+            <div class="mb-2">или</div>
+
+            <button type="submit" name="action" value="drop_all_na" class="btn btn-danger" data-bs-toggle="tooltip"
+                title="Удаление всех строк, содержащих пропуски в любом столбце">
+                Быстрое удаление
+            </button>
         </form>
     </div>
 
-    <!-- Второй столбец: Работа со строками -->
+    <!-- Второй столбец: Обработка строк -->
     <div class="col-md-4 mb-4 border-end d-flex flex-column justify-content-center align-items-center">
-        <h4 id="row_operations">Работа со строками</h4>
+        <h4 id="row_operations">Обработка строк</h4>
         <form method="post" class="text-center">
             <label for="value_column" class="form-label">Выберите столбец, в котором содержится значение:</label>
             <select name="value_column" id="value_column" class="form-select mb-3">
@@ -75,7 +100,7 @@
             </select>
             <div class="form-text mb-3">Удерживайте Ctrl (Cmd), чтобы выбрать несколько значений</div>
 
-            <button type="button" class="btn btn-danger mb-3" data-bs-toggle="modal" data-bs-target="#deleteValueModal"
+            <button type="button" class="btn btn-danger mb-2" data-bs-toggle="modal" data-bs-target="#deleteValueModal"
                 data-bs-toggle="tooltip" title="Удаление всех строк, которые содержат выбранные значения">
                 Удалить выбранные значения
             </button>
@@ -130,8 +155,79 @@
         </form>
     </div>
 
-    <!-- Третий столбец: Удаление столбцов -->
+    <!-- Третий столбец: Обработка аномальных значений -->
     <div class="col-md-4 mb-4 d-flex flex-column justify-content-center align-items-center">
+        <h4 id="outliers">Обработка аномальных значений</h4>
+        <form method="post" class="text-center">
+            <label for="outlier_column" class="form-label">Выберите столбец, в котором содержатся аномальные
+                значения:</label>
+            <select name="outlier_column" id="outlier_column" class="form-select mb-3">
+                {% for column in numeric_columns %}
+                <option value="{{ column }}">{{ column }}</option>
+                {% endfor %}
+            </select>
+
+            <button type="submit" name="action" value="remove_outlier_rows" class="btn btn-danger mb-2"
+                data-bs-toggle="tooltip"
+                title="Удаление всех строк, содержащих аномальные значения в выбранном столбце">
+                Удаление строк
+            </button>
+
+            <button type="submit" name="action" value="replace_outliers_mean" class="btn btn-warning mb-2"
+                data-bs-toggle="tooltip" title="Замена аномальных значений на среднее значение столбца">
+                Замена на среднее
+            </button>
+
+            <button type="submit" name="action" value="replace_outliers_median" class="btn btn-info mb-2"
+                data-bs-toggle="tooltip" title="Замена аномальных значений на медианное значение столбца">
+                Замена на медиану
+            </button>
+
+            <button type="submit" name="action" value="replace_outliers_mode" class="btn btn-primary mb-2"
+                data-bs-toggle="tooltip" title="Замена аномальных значений на наиболее часто встречаемое значение">
+                Замена на моду
+            </button>
+
+            <div class="mb-2">или</div>
+
+            <button type="submit" name="action" value="remove_all_outliers" class="btn btn-danger"
+                data-bs-toggle="tooltip" title="Удаление всех строк, содержащих аномальные значения в любом столбце">
+                Быстрое удаление
+            </button>
+        </form>
+    </div>
+</div>
+
+<hr>
+
+<!-- Нижняя структура с двумя столбцами -->
+<div class="row">
+    <!-- Первый столбец: Фильтрация данных -->
+    <div class="col-md-6 mb-4 border-end d-flex flex-column justify-content-center align-items-center">
+        <h4 id="filter">Фильтрация данных</h4>
+        <form method="post" class="text-center">
+            <label for="filter_column" class="form-label">Выберите колонку для фильтрации:</label>
+            <select name="filter_column" class="form-select">
+                {% for column in columns %}
+                <option value="{{ column }}">{{ column }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="condition" class="form-select mt-2">
+                <option value="==">Равно</option>
+                <option value=">">Больше</option>
+                <option value="<">Меньше</option>
+                <option value="!=">Не равно</option>
+            </select>
+
+            <input type="text" name="value" class="form-control mt-2" placeholder="Введите значение для фильтрации">
+
+            <button type="submit" name="action" value="filter" class="btn btn-primary mt-3">Фильтровать данные</button>
+        </form>
+    </div>
+
+    <!-- Второй столбец: Удаление столбцов -->
+    <div class="col-md-6 mb-4 d-flex flex-column justify-content-center align-items-center">
         <h4 id="drop_columns">Удаление столбцов</h4>
         <form method="post" class="text-center">
             <label for="columns_to_drop" class="form-label">Выберите столбцы для удаления:</label>
@@ -142,47 +238,6 @@
             </select>
             <button type="submit" name="action" value="drop_columns" class="btn btn-danger mt-3">Удалить выбранные
                 столбцы</button>
-        </form>
-    </div>
-</div>
-
-<hr>
-
-<!-- Нижняя структура с двумя столбцами -->
-<div class="row">
-    <!-- Первый столбец: Работа с пропусками -->
-    <div class="col-md-6 mb-4 border-end d-flex flex-column justify-content-center align-items-center">
-        <h4 id="drop_na">Работа с пропусками</h4>
-        <form method="post" class="text-center">
-            <button type="submit" name="action" value="drop_na" class="btn btn-danger mb-3">Удалить строки с
-                пропусками</button>
-            <button type="submit" name="action" value="fill_mean" class="btn btn-warning mb-3">Заполнить пропуски
-                средним значением</button>
-            <button type="submit" name="action" value="fill_median" class="btn btn-info mb-3" data-bs-toggle="tooltip"
-                title="Медиана - значение, которое находится в середине набора данных, если упорядочить их по возрастанию">Заполнить
-                пропуски медианой</button>
-            <button type="submit" name="action" value="fill_mode" class="btn btn-primary mb-3" data-bs-toggle="tooltip"
-                title="Мода - значение, которое встречается наиболее часто">Заполнить пропуски
-                модой</button>
-        </form>
-    </div>
-
-    <!-- Второй столбец: Работа с аномальными значениями -->
-    <div class="col-md-6 mb-4 d-flex flex-column justify-content-center align-items-center">
-        <h4 id="outliers">Работа с аномальными значениями</h4>
-        <form method="post" class="text-center">
-            <label for="outlier_column" class="form-label">Выберите столбец с аномальными значениями:</label>
-            <select name="outlier_column" id="outlier_column" class="form-select mb-3">
-                {% for column in numeric_columns %}
-                <option value="{{ column }}">{{ column }}</option>
-                {% endfor %}
-            </select>
-
-            <button type="submit" name="action" value="remove_outliers" class="btn btn-danger mb-3">Удалить строки с
-                выбросами</button>
-            <button type="submit" name="action" value="replace_outliers" class="btn btn-warning mb-3">Заменить выбросы
-                на
-                медиану</button>
         </form>
     </div>
 </div>

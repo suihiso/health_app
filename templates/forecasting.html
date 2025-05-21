@@ -373,13 +373,23 @@
 
     // Функция для отображения модального окна подтверждения
     function confirmUsePredictions() {
-        // Получаем имя оригинального датасета из сессии
-        fetch('/get_original_dataset_name')
+        // Проверяем наличие датасета в сессии
+        fetch('/check_dataset')
             .then(response => response.json())
             .then(data => {
-                document.getElementById('originalDatasetName').textContent = data.dataset_name;
-                var modal = new bootstrap.Modal(document.getElementById('confirmModal'));
-                modal.show();
+                if (data.has_dataset) {
+                    // Если датасет существует, показываем модальное окно
+                    fetch('/get_original_dataset_name')
+                        .then(response => response.json())
+                        .then(data => {
+                            document.getElementById('originalDatasetName').textContent = data.dataset_name;
+                            var modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+                            modal.show();
+                        });
+                } else {
+                    // Если датасета нет, сразу переходим к использованию прогнозов
+                    usePredictions();
+                }
             });
     }
 
