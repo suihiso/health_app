@@ -10,22 +10,22 @@
 <div class="anchor-nav mb-4 d-flex justify-content-between">
     <!-- Кнопки с разделами -->
     <div>
-        <a href="#head" class="btn btn-outline-primary btn-sm" data-bs-toggle="tooltip"
-            title="Просмотр первых строк таблицы">📋 Таблица</a>
-        <a href="#stats" class="btn btn-outline-primary btn-sm" data-bs-toggle="tooltip"
+        <a href="#head" class="btn btn-outline-primary btn-md" data-bs-toggle="tooltip"
+            title="Просмотр таблицы данных">📋 Просмотр данных</a>
+        <a href="#stats" class="btn btn-outline-primary btn-md" data-bs-toggle="tooltip"
             title="Основные статистические показатели">📊 Статистика</a>
-        <a href="#dtypes" class="btn btn-outline-primary btn-sm" data-bs-toggle="tooltip"
-            title="Информация о типах данных">📄 Типы данных</a>
-        <a href="#nulls" class="btn btn-outline-primary btn-sm" data-bs-toggle="tooltip"
-            title="Анализ пропущенных значений">⚠️ Пропуски</a>
-        <a href="#anomalies" class="btn btn-outline-primary btn-sm" data-bs-toggle="tooltip"
-            title="Анализ аномальных значений">🔍 Аномалии</a>
+        <a href="#dtypes" class="btn btn-outline-primary btn-md" data-bs-toggle="tooltip"
+            title="Таблица типов данных">📄 Типы данных</a>
+        <a href="#nulls" class="btn btn-outline-primary btn-md" data-bs-toggle="tooltip"
+            title="Информация о пропущенных значениях">⚠️ Пропуски</a>
+        <a href="#anomalies" class="btn btn-outline-primary btn-md" data-bs-toggle="tooltip"
+            title="Информация об аномальных значениях">🔍 Аномалии</a>
     </div>
 
     <!-- Кнопка "Назад" выровненная по правому краю -->
     <div class="ml-auto">
-        <a href="{{ url_for('clean_data') }}" class="btn btn-outline-warning btn-sm">📝 Обработка данных</a>
-        <a href="{{ url_for('select_action') }}" class="btn btn-secondary btn-sm">Назад</a>
+        <a href="{{ url_for('clean_data') }}" class="btn btn-outline-warning btn-md" data-bs-toggle="tooltip"
+            title="Переход на страницу обработки данных">📝 Обработка данных</a>
     </div>
 </div>
 
@@ -85,7 +85,7 @@
 </div>
 
 <hr id="anomalies">
-<h4>🔍 Аномальные значения (метод межквартильного размаха (IQR))</h4>
+<h4>🔍 Аномальные значения (метод межквартильного размаха - IQR)</h4>
 <div class="table-responsive">
     {{ anomalies | safe }}
 </div>

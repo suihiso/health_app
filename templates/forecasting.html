@@ -19,27 +19,6 @@
 {% endif %}
 {% endwith %}
 
-<!-- Модальное окно подтверждения для кнопки "Выбор действия" -->
-<div class="modal fade" id="actionConfirmModal" tabindex="-1" aria-labelledby="actionConfirmModalLabel"
-    aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="actionConfirmModalLabel">Подтверждение</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                Внимание! Вы не загружали данные для анализа, поэтому будете переведены на страницу загрузки файла.
-                Подтвердить действие?
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Нет</button>
-                <button type="button" class="btn btn-primary" onclick="redirectToIndex()">Да</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Модальное окно подтверждения для кнопки "ЗДЕСЬ" -->
 <div class="modal fade" id="trainingConfirmModal" tabindex="-1" aria-labelledby="trainingConfirmModalLabel"
     aria-hidden="true">
@@ -327,6 +306,30 @@
             });
         }
 
+        const exploreLink = document.querySelector('a[href="{{ url_for("explore") }}"]');
+        if (exploreLink) {
+            exploreLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                checkDatasetAndShowModal('trainingConfirmModal');
+            });
+        }
+
+        const processLink = document.querySelector('a[href="{{ url_for("process_data") }}"]');
+        if (processLink) {
+            processLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                checkDatasetAndShowModal('trainingConfirmModal');
+            });
+        }
+
+        const visualizeLink = document.querySelector('a[href="{{ url_for("visualize") }}"]');
+        if (visualizeLink) {
+            visualizeLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                checkDatasetAndShowModal('trainingConfirmModal');
+            });
+        }
+
         const trainingLink = document.querySelector('a[href="{{ url_for("training_models") }}"]');
         if (trainingLink) {
             trainingLink.addEventListener('click', function (e) {
@@ -334,6 +337,8 @@
                 checkDatasetAndShowModal('trainingConfirmModal');
             });
         }
+
+
 
         // Добавляем обработчик для очистки результатов при уходе со страницы
         window.addEventListener('beforeunload', function () {

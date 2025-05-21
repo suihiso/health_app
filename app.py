@@ -632,10 +632,68 @@ def process_data():
             elif action == 'drop_columns':
                 columns_to_drop = request.form.getlist('columns_to_drop')
                 try:
-                    df.drop(columns=columns_to_drop, inplace=True)
-                    flash(f'Столбцы {", ".join(columns_to_drop)} были удалены', 'success')
+                    if not columns_to_drop:
+                        flash('Не выбраны столбцы для удаления', 'danger')
+                        return redirect(request.url)
+                    else:
+                        df.drop(columns=columns_to_drop, inplace=True)
+                        flash(f'Столбцы {", ".join(columns_to_drop)} были удалены', 'success')
                 except Exception as e:
                     flash(f"Ошибка при удалении столбцов: {e}", 'danger')
+
+            # Удаление строк с выбранными значениями
+            elif action == 'delete_value':
+                try:
+                    value_column = request.form.get('value_column')
+                    column_values = request.form.getlist('column_values')
+                    
+                    if not value_column or not column_values:
+                        flash("Не выбран столбец или значения для удаления", 'danger')
+                    else:
+                        # Сохраняем количество строк до фильтрации
+                        original_count = len(df)
+                        
+                        # Удаляем строки с выбранными значениями
+                        df = df[~df[value_column].isin(column_values)]
+                        
+                        # Проверяем, не стал ли датасет пустым после удаления
+                        if df.empty:
+                            # Если датасет пуст, отменяем удаление и возвращаем исходный датасет
+                            df = original_df.copy()
+                            flash("Удаление не применено, так как результат был бы пустым.", 'danger')
+                        else:
+                            # Количество удаленных строк
+                            removed_count = original_count - len(df)
+                            flash(f'Удалено {removed_count} строк, содержащих выбранные значения в столбце "{value_column}"', 'success')
+                except Exception as e:
+                    flash(f"Ошибка при удалении строк: {e}", 'danger')
+
+            # Удаление всех строк, кроме выбранных значений
+            elif action == 'keep_only_value':
+                try:
+                    value_column = request.form.get('value_column')
+                    column_values = request.form.getlist('column_values')
+                    
+                    if not value_column or not column_values:
+                        flash("Не выбран столбец или значения для сохранения", 'danger')
+                    else:
+                        # Сохраняем количество строк до фильтрации
+                        original_count = len(df)
+                        
+                        # Оставляем только строки с выбранными значениями
+                        df = df[df[value_column].isin(column_values)]
+                        
+                        # Проверяем, не стал ли датасет пустым после фильтрации
+                        if df.empty:
+                            # Если датасет пуст, отменяем фильтрацию и возвращаем исходный датасет
+                            df = original_df.copy()
+                            flash("Фильтрация не применена, так как результат был бы пустым.", 'danger')
+                        else:
+                            # Количество удаленных строк
+                            removed_count = original_count - len(df)
+                            flash(f'Удалено {removed_count} строк, оставлены только строки с выбранными значениями в столбце "{value_column}"', 'success')
+                except Exception as e:
+                    flash(f"Ошибка при фильтрации строк: {e}", 'danger')
 
             # Фильтрация по условию
             elif action == 'filter':

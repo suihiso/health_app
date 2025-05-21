@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <title>{% block title %}Анализ данных{% endblock %}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         /* Липкая шапка с серым фоном */
         nav.navbar {
@@ -21,7 +22,7 @@
         /* Липкое меню */
         .anchor-nav {
             position: sticky;
-            top: 56px;
+            top: 60px;
             /* Высота шапки сайта (если шапка фиксированная) */
             background-color: #fff;
             z-index: 10;
@@ -51,10 +52,179 @@
         .nav-link:hover {
             color: #d6e5e5;
         }
+
+        /* Стили для бокового меню */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: -330px;
+            width: 330px;
+            height: 100vh;
+            background-color: white;
+            box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+            transition: right 0.3s ease;
+            z-index: 1000;
+        }
+
+        .sidebar.active {
+            right: 0;
+        }
+
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+
+        .sidebar-menu a {
+            display: block;
+            padding: 15px 25px;
+            color: #333;
+            text-decoration: none;
+        }
+
+        .sidebar-menu a:hover {
+            background-color: #f8f9fa;
+        }
+
+        .slider-line {
+            border: 1px solid #ddd;
+            margin: 0;
+        }
+
+        /* Затемнение фона */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 999;
+        }
+
+        .overlay.active {
+            display: block;
+        }
+
+        .btn-primary {
+            background-color: #499494;
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background-color: #347070;
+            color: white;
+            border: none;
+        }
+
+        .btn-outline-primary {
+            border-color: #499494;
+            color: #499494;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: #499494;
+            border-color: #499494;
+            color: white;
+        }
+
+        /* Стили для неактивных кнопок */
+        .btn-outline-primary:disabled,
+        .btn-outline-primary.disabled {
+            background-color: #f8f9fa;
+            border-color: #499494;
+            color: #499494;
+            opacity: 0.65;
+        }
+
+        .btn-outline-primary:disabled:hover,
+        .btn-outline-primary.disabled:hover {
+            background-color: #f8f9fa;
+            border-color: #499494;
+            color: #499494;
+            opacity: 0.65;
+        }
+
+        .btn-secondary {
+            background-color: #8ab7b7;
+            color: white;
+            border: none;
+        }
+
+        .btn-secondary:hover {
+            background-color: #619292;
+            color: white;
+            border: none;
+        }
+
+        .btn-success {
+            background-color: #71ad78;
+            color: white;
+            border: none;
+        }
+
+        .btn-success:hover {
+            background-color: #47814e;
+            color: white;
+            border: none;
+        }
+
+        .btn-warning {
+            background-color: #e7b56f;
+            color: white;
+            border: none;
+        }
+
+        .btn-warning:hover {
+            background-color: #e7b56f;
+            color: white;
+            border: none;
+        }
+
+        .btn-outline-warning {
+            border-color: #e7b56f;
+            color: #e7b56f;
+        }
+
+        .btn-outline-warning:hover {
+            background-color: #d29f58;
+            border-color: #d29f58;
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: #cd6767;
+            color: white;
+            border: none;
+        }
+
+        .btn-danger:hover {
+            background-color: #af4c4c;
+            color: white;
+            border: none;
+        }
     </style>
 </head>
 
 <body>
+    <!-- Затемнение фона -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Боковое меню -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-menu">
+            <a href="{{ url_for('explore') }}">Обзор данных</a>
+            <hr class="slider-line">
+            <a href="{{ url_for('process_data') }}">Обработка данных</a>
+            <hr class="slider-line">
+            <a href="{{ url_for('visualize') }}">Визуализация данных</a>
+            <hr class="slider-line">
+            <a href="{{ url_for('training_models') }}">Обучение моделей прогнозирования</a>
+            <hr class="slider-line">
+            <a href="{{ url_for('forecasting') }}">Прогнозирование данных</a>
+        </div>
+    </div>
 
     <!-- Шапка сайта (липкая с серым фоном) -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
@@ -63,10 +233,14 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}">Загрузка новых данных</a>
+                        <a class="nav-link" href="{{ url_for('index') }}">
+                            <i class="bi bi-file-earmark-arrow-up me-1"></i>Загрузка новых данных
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('select_action') }}">Выбор инструмента</a>
+                        <a class="nav-link" href="#" id="toggleSidebar">
+                            <i class="bi bi-list me-1"></i>Выбор инструмента
+                        </a>
                     </li>
                 </ul>
             </div>
@@ -78,8 +252,69 @@
         {% block content %}{% endblock %}
     </div>
 
+    <!-- Модальное окно подтверждения -->
+    <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmationModalLabel">Подтверждение</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Внимание! При переходе на страницу загрузки новых данных все текущие данные будут утеряны. Вы
+                    уверены, что хотите продолжить?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" id="confirmUpload" style="width: 75px;">Да</button>
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal"
+                        style="width: 75px;">Нет</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript скрипты -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            const toggleButton = document.getElementById('toggleSidebar');
+
+            // Находим все ссылки на загрузку данных
+            const uploadLinks = document.querySelectorAll('a[href="{{ url_for("index") }}"]');
+            const confirmationModal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+
+            // Функция для открытия/закрытия меню
+            function toggleSidebar() {
+                sidebar.classList.toggle('active');
+                overlay.classList.toggle('active');
+            }
+
+            // Обработчик клика по кнопке
+            toggleButton.addEventListener('click', function (e) {
+                e.preventDefault();
+                toggleSidebar();
+            });
+
+            // Обработчик клика по затемнению
+            overlay.addEventListener('click', toggleSidebar);
+
+            // Обработчик клика по всем ссылкам загрузки
+            uploadLinks.forEach(function (link) {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    confirmationModal.show();
+                });
+            });
+
+            // Обработчик для кнопки "Да" в модальном окне
+            document.getElementById('confirmUpload').addEventListener('click', function () {
+                window.location.href = "{{ url_for('index') }}";
+            });
+        });
+    </script>
 </body>
 
 </html>

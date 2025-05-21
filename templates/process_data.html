@@ -9,13 +9,14 @@
 <div class="anchor-nav mb-4 d-flex justify-content-between">
     <!-- Кнопки с действиями слева -->
     <div>
-        <a href="{{ url_for('download_cleaned_data') }}" class="btn btn-success btn-sm">Скачать обработанные данные</a>
+        <a href="{{ url_for('download_cleaned_data') }}" class="btn btn-success btn-md" data-bs-toggle="tooltip"
+            title="Скачать файл с обработанными данными">Скачать обработанные данные</a>
     </div>
 
     <!-- Кнопка справа -->
     <div class="ml-auto">
-        <a href="{{ url_for('explore') }}" class="btn btn-warning btn-sm">Обзор данных</a>
-        <a href="{{ url_for('select_action') }}" class="btn btn-secondary btn-sm">Назад</a>
+        <a href="{{ url_for('explore') }}" class="btn btn-outline-warning btn-md" data-bs-toggle="tooltip"
+            title="Переход на страницу обзора данных">📋Обзор данных</a>
     </div>
 </div>
 
@@ -48,19 +49,19 @@
                 Удаление строк
             </button>
 
-            <button type="submit" name="action" value="fill_na_mean" class="btn btn-warning mb-2"
+            <button type="submit" name="action" value="fill_na_mean" class="btn btn-secondary mb-2"
                 data-bs-toggle="tooltip"
                 title="Замена пропусков на среднее значение столбца (только для числовых данных)">
                 Замена на среднее
             </button>
 
-            <button type="submit" name="action" value="fill_na_median" class="btn btn-info mb-2"
+            <button type="submit" name="action" value="fill_na_median" class="btn btn-secondary mb-2"
                 data-bs-toggle="tooltip"
                 title="Замена пропусков на медианное значение столбца (только для числовых данных)">
                 Замена на медиану
             </button>
 
-            <button type="submit" name="action" value="fill_na_mode" class="btn btn-primary mb-2"
+            <button type="submit" name="action" value="fill_na_mode" class="btn btn-secondary mb-2"
                 data-bs-toggle="tooltip"
                 title="Замена пропусков на наиболее часто встречаемое значение (работает для любых типов данных)">
                 Замена на моду
@@ -105,7 +106,7 @@
                 Удалить выбранные значения
             </button>
 
-            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#keepValueModal"
+            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#keepValueModal"
                 data-bs-toggle="tooltip" title="Удаление всех строк, которые НЕ содержат выбранные значения">
                 Удалить все значения, кроме выбранных
             </button>
@@ -124,8 +125,10 @@
                             действие?
                         </div>
                         <div class="modal-footer">
-                            <button type="submit" name="action" value="delete_value" class="btn btn-danger">Да</button>
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Нет</button>
+                            <button type="submit" name="action" value="delete_value" class="btn btn-success"
+                                style="width: 75px;">Да</button>
+                            <button type="button" class="btn btn-danger" data-bs-dismiss="modal"
+                                style="width: 75px;">Нет</button>
                         </div>
                     </div>
                 </div>
@@ -145,9 +148,10 @@
                             действие?
                         </div>
                         <div class="modal-footer">
-                            <button type="submit" name="action" value="keep_only_value"
-                                class="btn btn-warning">Да</button>
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Нет</button>
+                            <button type="submit" name="action" value="keep_only_value" class="btn btn-success"
+                                style="width: 75px;">Да</button>
+                            <button type="button" class="btn btn-danger" data-bs-dismiss="modal"
+                                style="width: 75px;">Нет</button>
                         </div>
                     </div>
                 </div>
@@ -173,17 +177,17 @@
                 Удаление строк
             </button>
 
-            <button type="submit" name="action" value="replace_outliers_mean" class="btn btn-warning mb-2"
+            <button type="submit" name="action" value="replace_outliers_mean" class="btn btn-secondary mb-2"
                 data-bs-toggle="tooltip" title="Замена аномальных значений на среднее значение столбца">
                 Замена на среднее
             </button>
 
-            <button type="submit" name="action" value="replace_outliers_median" class="btn btn-info mb-2"
+            <button type="submit" name="action" value="replace_outliers_median" class="btn btn-secondary mb-2"
                 data-bs-toggle="tooltip" title="Замена аномальных значений на медианное значение столбца">
                 Замена на медиану
             </button>
 
-            <button type="submit" name="action" value="replace_outliers_mode" class="btn btn-primary mb-2"
+            <button type="submit" name="action" value="replace_outliers_mode" class="btn btn-secondary mb-2"
                 data-bs-toggle="tooltip" title="Замена аномальных значений на наиболее часто встречаемое значение">
                 Замена на моду
             </button>
@@ -220,9 +224,11 @@
                 <option value="!=">Не равно</option>
             </select>
 
-            <input type="text" name="value" class="form-control mt-2" placeholder="Введите значение для фильтрации">
+            <input type="text" name="value" class="form-control mt-2" placeholder="Введите значение для фильтрации"
+                style="font-size: 0.9em;">
 
-            <button type="submit" name="action" value="filter" class="btn btn-primary mt-3">Фильтровать данные</button>
+            <button type="submit" name="action" value="filter" class="btn btn-secondary mt-3">Фильтровать
+                данные</button>
         </form>
     </div>
 
