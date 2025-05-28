@@ -327,15 +327,26 @@
         }
 
         // Добавляем обработчик для очистки результатов при уходе со страницы
-        window.addEventListener('beforeunload', function () {
-            // Отправляем запрос на очистку результатов
-            fetch('/clear_predictions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            }).catch(error => console.error('Ошибка при очистке результатов:', error));
-        });
+        window.beforeunloadHandler = function (e) {
+            // Проверяем, не является ли переход использованием прогнозов или скачиванием
+            const activeElement = document.activeElement;
+            const isUsePredictions = activeElement &&
+                activeElement.href &&
+                (activeElement.href.includes('use_predictions') ||
+                    activeElement.href.includes('download_predictions'));
+
+            if (!isUsePredictions) {
+                // Отправляем запрос на очистку результатов
+                fetch('/clear_predictions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                }).catch(error => console.error('Ошибка при очистке результатов:', error));
+            }
+        };
+
+        window.addEventListener('beforeunload', window.beforeunloadHandler);
     });
 
     // Функция для проверки наличия датасета и показа модального окна
@@ -386,6 +397,8 @@
 
     // Функция для использования прогнозов
     function usePredictions() {
+        // Удаляем обработчик beforeunload перед переходом
+        window.removeEventListener('beforeunload', window.beforeunloadHandler);
         window.location.href = '/use_predictions';
     }
 

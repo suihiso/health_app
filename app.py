@@ -18,6 +18,7 @@ from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error # 
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix # Для работы с моделями
 from sklearn.preprocessing import StandardScaler, LabelEncoder # Для работы с моделями
 from datetime import datetime # Для работы с датами
+import shutil # Для копирования файлов
 
 # Настройки
 UPLOAD_FOLDER = 'uploads' # Папка для загрузки файлов
@@ -1583,7 +1584,11 @@ def forecasting():
                 result_df['Prediction'] = y_pred
                 
                 # Сохраняем только необходимые данные в сессии
-                session['prediction_df'] = result_df.to_json(orient='records')
+                # Вместо сохранения всего датафрейма, сохраняем только путь к файлу
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                predictions_file = os.path.join(app.config['UPLOAD_FOLDER'], f'predictions_{timestamp}.csv')
+                result_df.to_csv(predictions_file, index=False)
+                session['predictions_file'] = predictions_file
                 session['prediction_type'] = 'categorical' if model_data and model_data.get('task_type') == 'classification' else 'numeric'
                 
                 # Перенаправляем на страницу результатов
@@ -1594,10 +1599,10 @@ def forecasting():
             return redirect(url_for('forecasting'))
     
     # Если есть данные прогнозов, отображаем их
-    if 'prediction_df' in session:
+    if 'predictions_file' in session:
         try:
-            # Загружаем датафрейм с прогнозами
-            prediction_df = pd.read_json(session['prediction_df'], orient='records')
+            # Загружаем датафрейм с прогнозами из файла
+            prediction_df = pd.read_csv(session['predictions_file'])
             
             # Получаем тип прогноза
             prediction_type = session.get('prediction_type', 'numeric')
@@ -1700,29 +1705,43 @@ def forecasting():
         except Exception as e:
             flash(f'Ошибка при отображении результатов прогнозирования: {str(e)}', 'danger')
             # Если возникла ошибка, удаляем данные прогнозов
-            session.pop('prediction_df', None)
+            session.pop('predictions_file', None)
             session.pop('prediction_type', None)
     
     return render_template('forecasting.html', **context)
 
 @app.route('/download_predictions')
 def download_predictions():
-    if 'prediction_df' not in session:
+    if 'predictions_file' not in session:
         flash('Нет доступных прогнозов для скачивания', 'warning')
         return redirect(url_for('forecasting'))
     
     try:
-        # Загружаем датафрейм с прогнозами
-        prediction_df = pd.read_json(session['prediction_df'])
+        # Создаем копию файла для скачивания
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        download_file = os.path.join(app.config['UPLOAD_FOLDER'], f'download_predictions_{timestamp}.csv')
+        
+        # Копируем файл прогнозов
+        import shutil
+        shutil.copy2(session['predictions_file'], download_file)
+        
+        # Загружаем датафрейм с прогнозами из копии файла
+        prediction_df = pd.read_csv(download_file)
+        
         # Создаем временный буфер для записи Excel
         output = BytesIO()
         prediction_df.to_excel(output, index=False, engine='openpyxl')
         output.seek(0)
-        # Формируем имя файла с текущей датой и временем
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        # Формируем имя файла для скачивания
         filename = f'predictions_{timestamp}.xlsx'
-        # Сохраняем прогнозы обратно в сессию после скачивания
-        session['prediction_df'] = prediction_df.to_json()
+        
+        # Удаляем временную копию файла
+        try:
+            os.remove(download_file)
+        except Exception:
+            pass
+        
         # Отправляем файл как Excel
         return send_file(
             output,
@@ -1745,22 +1764,31 @@ def get_original_dataset_name():
 
 @app.route('/use_predictions')
 def use_predictions():
-    if 'prediction_df' not in session:
+    if 'predictions_file' not in session:
         flash('Нет доступных прогнозов для использования', 'warning')
         return redirect(url_for('forecasting'))
     
     try:
-        # Загружаем датафрейм с прогнозами
-        prediction_df = pd.read_json(session['prediction_df'])
-        # Сохраняем датафрейм с прогнозами как новый файл
+        # Загружаем датафрейм с прогнозами из файла
+        prediction_df = pd.read_csv(session['predictions_file'])
+        
+        # Создаем копию файла для использования
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        new_file_path = os.path.join(app.config['UPLOAD_FOLDER'], f'predictions_{timestamp}.csv')
+        new_file_path = os.path.join(app.config['UPLOAD_FOLDER'], f'used_predictions_{timestamp}.csv')
         prediction_df.to_csv(new_file_path, index=False)
+        
         # Обновляем путь к файлу в сессии
         session['file_path'] = new_file_path
-        # Очищаем данные о прогнозах
-        session.pop('prediction_df', None)
+        
+        # Очищаем данные о прогнозах только после успешного копирования
+        if os.path.exists(session['predictions_file']):
+            try:
+                os.remove(session['predictions_file'])
+            except Exception:
+                pass
+        session.pop('predictions_file', None)
         session.pop('prediction_type', None)
+        
         # Перенаправляем на страницу выбора действия
         return redirect(url_for('select_action'))
     except Exception as e:
@@ -1775,7 +1803,15 @@ def check_dataset():
 @app.route('/clear_predictions', methods=['POST'])
 def clear_predictions():
     # Очищаем все данные, связанные с прогнозированием
-    session.pop('prediction_df', None)
+    if 'predictions_file' in session:
+        # Удаляем временный файл с прогнозами
+        try:
+            if os.path.exists(session['predictions_file']):
+                os.remove(session['predictions_file'])
+        except Exception:
+            pass
+        session.pop('predictions_file', None)
+    
     session.pop('prediction_type', None)
     session.pop('model_path', None)
     session.pop('test_data_path', None)
