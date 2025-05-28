@@ -67,8 +67,8 @@
                 <input class="form-check-input reg-model-checkbox" type="checkbox" name="model_types[]" id="linearModel"
                     value="linear" {% if "linear" in model_types %}checked{% endif %}>
                 <label class="form-check-label" for="linearModel" data-bs-toggle="tooltip" data-bs-placement="right"
-                    title="Линейная регрессия подходит для простых зависимостей, когда целевая переменная линейно зависит от признаков. Хорошо работает на небольших датасетах и проста в интерпретации.">
-                    Линейная регрессия
+                    title="Подходит для небольших наборов линейно зависимых данных">
+                    Линейная регрессия (Linear Regression)
                 </label>
             </div>
 
@@ -78,8 +78,8 @@
                     task_type=='regression' %}checked{% endif %}>
                 <label class="form-check-label" for="decisionTreeRegModel" data-bs-toggle="tooltip"
                     data-bs-placement="right"
-                    title="Дерево решений разбивает данные на подмножества, основываясь на значениях признаков. Подходит для нелинейных зависимостей и легко интерпретируется.">
-                    Дерево решений
+                    title="Подходит для нелинейных зависимостей. Работает с категориальными и числовыми признаками">
+                    Дерево решений (Decision Tree)
                 </label>
             </div>
 
@@ -89,8 +89,8 @@
                     task_type=='regression' %}checked{% endif %}>
                 <label class="form-check-label" for="randomForestRegModel" data-bs-toggle="tooltip"
                     data-bs-placement="right"
-                    title="Случайный лес - ансамбль деревьев решений. Подходит для сложных нелинейных зависимостей. Устойчив к выбросам и хорошо работает с большими датасетами.">
-                    Случайный лес
+                    title="Подходит для сложных нелинейных зависимостей. Устойчив к выбросам. Хорошо работает с большими наборами данных">
+                    Случайный лес (Random Forest)
                 </label>
             </div>
 
@@ -100,22 +100,15 @@
                     task_type=='regression' %}checked{% endif %}>
                 <label class="form-check-label" for="gradientBoostingRegModel" data-bs-toggle="tooltip"
                     data-bs-placement="right"
-                    title="Градиентный бустинг - последовательный ансамбль деревьев решений. Обычно показывает лучшие результаты, но может переобучаться. Хорошо работает с различными типами данных.">
-                    Градиентный бустинг
-                </label>
-            </div>
-
-            <div class="form-check mb-2">
-                <input class="form-check-input reg-model-checkbox" type="checkbox" name="model_types[]" id="svrModel"
-                    value="svr" {% if "svr" in model_types %}checked{% endif %}>
-                <label class="form-check-label" for="svrModel" data-bs-toggle="tooltip" data-bs-placement="right"
-                    title="Метод опорных векторов хорошо подходит для данных с небольшим числом признаков. Хорошо справляется с задачами, где граница между классами нелинейна, но требует тщательного подбора параметров.">
-                    Метод опорных векторов
+                    title="Подходит для сложных зависимостей. Обычно показывает лучшие результаты. Требует больше вычислительных ресурсов">
+                    Градиентный бустинг (Gradient Boosting)
                 </label>
             </div>
             <div class="invalid-feedback mb-2" id="regModelError">Необходимо выбрать хотя бы одну модель прогнозирования
             </div>
             <div class="form-text mb-3"><small>Выберите не более 2-х моделей</small></div>
+            <p class="text-info mt-2" style="cursor: pointer;" onclick="showModelsModal('regression')">Подсказка по
+                моделям</p>
         </div>
 
         <!-- Правая колонка - Выбор переменных -->
@@ -172,8 +165,8 @@
                 <input class="form-check-input class-model-checkbox" type="checkbox" name="model_types[]"
                     id="logisticModel" value="logistic" {% if "logistic" in model_types %}checked{% endif %}>
                 <label class="form-check-label" for="logisticModel" data-bs-toggle="tooltip" data-bs-placement="right"
-                    title="Логистическая регрессия хорошо подходит для бинарной классификации. Проста в интерпретации и вычислительно эффективна.">
-                    Логистическая регрессия
+                    title="Подходит для линейно разделимых классов. Хорошо работает с небольшими наборами данных">
+                    Логистическая регрессия (Logistic Regression)
                 </label>
             </div>
 
@@ -183,8 +176,8 @@
                     task_type=='classification' %}checked{% endif %}>
                 <label class="form-check-label" for="decisionTreeClassModel" data-bs-toggle="tooltip"
                     data-bs-placement="right"
-                    title="Дерево решений разбивает данные на группы, основываясь на правилах. Легко интерпретируется и может работать с категориальными признаками без предварительной обработки.">
-                    Дерево решений
+                    title="Подходит для нелинейных зависимостей. Работает с категориальными и числовыми признаками">
+                    Дерево решений (Decision Tree)
                 </label>
             </div>
 
@@ -194,8 +187,8 @@
                     task_type=='classification' %}checked{% endif %}>
                 <label class="form-check-label" for="randomForestClassModel" data-bs-toggle="tooltip"
                     data-bs-placement="right"
-                    title="Случайный лес - ансамбль деревьев решений. Устойчив к переобучению и хорошо работает со сложными нелинейными зависимостями.">
-                    Случайный лес
+                    title="Подходит для сложных нелинейных зависимостей. Устойчив к переобучению. Хорошо работает с большими наборами данных">
+                    Случайный лес (Random Forest)
                 </label>
             </div>
 
@@ -205,8 +198,8 @@
                     and task_type=='classification' %}checked{% endif %}>
                 <label class="form-check-label" for="gradientBoostingClassModel" data-bs-toggle="tooltip"
                     data-bs-placement="right"
-                    title="Градиентный бустинг последовательно обучает деревья решений, корректируя ошибки предыдущих. Обычно показывает лучшие результаты точности, но может переобучаться.">
-                    Градиентный бустинг
+                    title="Подходит для сложных зависимостей. Обычно показывает лучшие результаты. Требует больше вычислительных ресурсов">
+                    Градиентный бустинг (Gradient Boosting)
                 </label>
             </div>
 
@@ -214,22 +207,15 @@
                 <input class="form-check-input class-model-checkbox" type="checkbox" name="model_types[]" id="knnModel"
                     value="knn" {% if "knn" in model_types %}checked{% endif %}>
                 <label class="form-check-label" for="knnModel" data-bs-toggle="tooltip" data-bs-placement="right"
-                    title="Метод k-ближайших соседей классифицирует объекты по большинству 'голосов' ближайших к нему соседей. Прост в реализации, но может быть неэффективным на больших данных.">
-                    К-ближайших соседей
-                </label>
-            </div>
-
-            <div class="form-check mb-2">
-                <input class="form-check-input class-model-checkbox" type="checkbox" name="model_types[]" id="svcModel"
-                    value="svc" {% if "svc" in model_types %}checked{% endif %}>
-                <label class="form-check-label" for="svcModel" data-bs-toggle="tooltip" data-bs-placement="right"
-                    title="Метод опорных векторов находит оптимальную гиперплоскость, разделяющую классы. Эффективен в пространствах высокой размерности и когда классы хорошо разделимы.">
-                    Метод опорных векторов
+                    title="Подходит для небольших наборов данных. Может быть медленным на больших данных">
+                    К-ближайших соседей (K-Nearest Neighbors)
                 </label>
             </div>
             <div class="invalid-feedback mb-2" id="classModelError">Необходимо выбрать хотя бы одну модель
                 прогнозирования</div>
             <div class="form-text mb-3"><small>Выберите не более 2-х моделей</small></div>
+            <p class="text-info mt-2" style="cursor: pointer;" onclick="showModelsModal('classification')">Подсказка по
+                моделям</p>
         </div>
 
         <!-- Правая колонка - Выбор переменных -->
@@ -270,7 +256,7 @@
     </div>
 
     <div class="border-top border-bottom py-4 text-center">
-        <button type="submit" class="btn btn-primary btn-lg">Обучить модели</button>
+        <button type="submit" class="btn btn-primary btn-lg">Обучение моделей</button>
     </div>
 </form>
 
@@ -322,7 +308,7 @@
     <!-- График -->
     <div class="text-center mb-4">
         <img src="data:image/png;base64,{{ result.image }}" class="img-fluid border"
-            alt="График результатов прогнозирования">
+            alt="График результатов прогнозирования" style="max-width: 80%; height: auto;">
     </div>
 
     <!-- Скачать график -->
@@ -381,12 +367,13 @@
 </div>
 {% endif %}
 
-<!-- Модальное окно с подсказкой по метрикам -->
-<div class="modal fade" id="metricsModal" tabindex="-1" aria-labelledby="metricsModalLabel" aria-hidden="true">
+<!-- Модальное окно с подсказкой по метрикам регрессии -->
+<div class="modal fade" id="regressionMetricsModal" tabindex="-1" aria-labelledby="regressionMetricsModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="metricsModalLabel">Подсказка по метрикам</h5>
+                <h5 class="modal-title" id="regressionMetricsModalLabel">Подсказка по метрикам регрессии</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -406,13 +393,112 @@
     </div>
 </div>
 
+<!-- Модальное окно с подсказкой по метрикам классификации -->
+<div class="modal fade" id="classificationMetricsModal" tabindex="-1" aria-labelledby="classificationMetricsModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="classificationMetricsModalLabel">Подсказка по метрикам классификации</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Accuracy (точность)</strong> - доля правильных предсказаний среди всех предсказаний.
+                    Показывает общую точность модели.</p>
+                <p><strong>Precision (прецизионность)</strong> - доля истинно положительных предсказаний среди всех
+                    положительных предсказаний. Показывает точность положительных предсказаний.</p>
+                <p><strong>Recall (полнота)</strong> - доля истинно положительных предсказаний среди всех реальных
+                    положительных случаев. Показывает способность модели находить все положительные случаи.</p>
+                <p><strong>F1-score</strong> - гармоническое среднее между precision и recall. Хороший баланс между
+                    точностью и полнотой.</p>
+                <p><strong>AUC-ROC</strong> - площадь под ROC-кривой. Показывает способность модели различать классы.
+                    Чем ближе к 1, тем лучше.</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Понятно</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно с подсказкой по моделям регрессии -->
+<div class="modal fade" id="regressionModelsModal" tabindex="-1" aria-labelledby="regressionModelsModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="regressionModelsModalLabel">Подсказка по моделям регрессии</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Линейная регрессия (Linear Regression)</strong> - простая модель, которая хорошо работает,
+                    когда зависимость между признаками и целевой переменной близка к линейной. Подходит для небольших
+                    наборов данных.</p>
+                <p><strong>Дерево решений (Decision Tree)</strong> - модель, которая разбивает данные на подмножества,
+                    основываясь на значениях признаков. Хорошо работает с нелинейными зависимостями.</p>
+                <p><strong>Случайный лес (Random Forest)</strong> - ансамбль деревьев решений, где каждое дерево
+                    обучается на случайной
+                    подвыборке данных. Устойчив к выбросам и хорошо работает с большими наборами данных.</p>
+                <p><strong>Градиентный бустинг (Gradient Boosting)</strong> - последовательное построение моделей
+                    (ансамблей деревьев решений), где каждая следующая модель пытается исправить ошибки предыдущей.
+                    Обычно показывает лучшие результаты.</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Понятно</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно с подсказкой по моделям классификации -->
+<div class="modal fade" id="classificationModelsModal" tabindex="-1" aria-labelledby="classificationModelsModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="classificationModelsModalLabel">Подсказка по моделям классификации</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Логистическая регрессия (Logistic Regression)</strong> - используется для предсказания
+                    вероятности принадлежности наблюдения к определенному классу. Хорошо работает с линейно
+                    категориальными данными.</p>
+                <p><strong>Дерево решений (Decision Tree)</strong> - разбивает данные на группы, основываясь на
+                    правилах. Легко интерпретируется и может работать с категориальными признаками без предварительной
+                    обработки.</p>
+                <p><strong>Случайный лес (Random Forest)</strong> - ансамбль деревьев решений, где каждое дерево
+                    обучается на случайной
+                    подвыборке данных. Устойчив к переобучению и хорошо работает с большими наборами данных.</p>
+                <p><strong>Градиентный бустинг (Gradient Boosting)</strong> - последовательное построение моделей
+                    (ансамблей деревьев решений), где каждая следующая модель пытается исправить ошибки предыдущей.
+                    Обычно показывает лучшие результаты.</p>
+                <p><strong>К-ближайших соседей (K-Nearest Neighbors)</strong> - классифицирует объекты по большинству
+                    "голосов" ближайших к нему соседей. Может быть неэффективным на больших данных.</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Понятно</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- JavaScript для вкладок и подсказок -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Функция для показа модального окна
+        // Функция для показа модального окна с метриками
         window.showMetricsModal = function () {
-            var metricsModal = new bootstrap.Modal(document.getElementById('metricsModal'));
+            // Определяем тип задачи на основе видимости форм
+            const taskType = regressionForm.classList.contains('d-none') ? 'classification' : 'regression';
+            var modalId = taskType === 'regression' ? 'regressionMetricsModal' : 'classificationMetricsModal';
+            var metricsModal = new bootstrap.Modal(document.getElementById(modalId));
             metricsModal.show();
+        };
+
+        // Функция для показа модального окна с моделями
+        window.showModelsModal = function (taskType) {
+            var modalId = taskType === 'regression' ? 'regressionModelsModal' : 'classificationModelsModal';
+            var modelsModal = new bootstrap.Modal(document.getElementById(modalId));
+            modelsModal.show();
         };
 
         // Включаем всплывающие подсказки

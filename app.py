@@ -1,47 +1,54 @@
-import os
-import matplotlib
-matplotlib.use('Agg')  # Установка неинтерактивного бэкенда
-import pandas as pd
-import numpy as np
-from flask import Flask, request, render_template, redirect, url_for, session, flash, send_file, jsonify
-import matplotlib.pyplot as plt
-import seaborn as sns
-from io import BytesIO
-import base64
-import joblib
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, GradientBoostingRegressor, GradientBoostingClassifier
-from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
-from sklearn.svm import SVR, SVC
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from datetime import datetime
+import os # Для работы с файлами
+import matplotlib # Для работы с графиками
+matplotlib.use('Agg') # Установка неинтерактивного бэкенда
+import pandas as pd # Для работы с данными
+import numpy as np # Для работы с данными
+from flask import Flask, request, render_template, redirect, url_for, session, flash, send_file, jsonify # Для работы с Flask
+import matplotlib.pyplot as plt # Для работы с графиками
+import seaborn as sns # Для работы с графиками
+from io import BytesIO # Для работы с графиками
+import base64 # Для работы с графиками
+import joblib # Для работы с моделями
+from sklearn.model_selection import train_test_split # Для работы с моделями
+from sklearn.linear_model import LinearRegression, LogisticRegression # Для работы с моделями
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, GradientBoostingRegressor, GradientBoostingClassifier # Для работы с моделями
+from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier # Для работы с моделями
+from sklearn.neighbors import KNeighborsClassifier # Для работы с моделями
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error # Для работы с моделями
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix # Для работы с моделями
+from sklearn.preprocessing import StandardScaler, LabelEncoder # Для работы с моделями
+from datetime import datetime # Для работы с датами
 
 # Настройки
-UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'csv', 'xls', 'xlsx'}
+UPLOAD_FOLDER = 'uploads' # Папка для загрузки файлов
+ALLOWED_EXTENSIONS = {'csv', 'xls', 'xlsx'} # Разрешенные расширения файлов
 
 # Создание приложения
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.secret_key = 'your_secret_key'  # ключ для сессии (можно написать любой)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER # Конфигурация для папки загрузки файлов
+app.secret_key = 'your_secret_key'  # Ключ для сессии
 
 # Проверка допустимого расширения файла
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Главная страница: загрузка файла
+# Начальная страница: Загрузка файла
 @app.route('/', methods=['GET', 'POST'])
 def index():
     # Очистка сессии, если файл уже загружен
     if 'file_path' in session:
-        session.pop('file_path')  # удаляем файл из сессии
-        session.pop('columns', None)  # удаляем список колонок из сессии
+        session.pop('file_path')  # Удаляем файл из сессии
+        session.pop('columns', None)  # Удаляем список колонок из сессии
+        session.pop('original_df', None)  # Удаляем оригинальный датасет из сессии
+        session.pop('unique_values', None)  # Удаляем список уникальных значений из сессии
+        session.pop('numeric_columns', None)  # Удаляем список числовых столбцов из сессии
+        session.pop('value_column', None)  # Удаляем столбец для получения уникальных значений из сессии
+        session.pop('action', None)  # Удаляем действие из сессии
+        session.pop('na_column', None)  # Удаляем столбец для обработки пропусков из сессии
+        session.pop('original_count', None)  # Удаляем количество строк в оригинальном датасете из сессии
+        session.pop('removed_count', None)  # Удаляем количество удаленных строк из сессии
     
-    # Очищаем данные о графике при переходе на главную страницу
+    # Очистка данных о графике при переходе на главную страницу
     if 'chart_file' in session:
         # Удаляем временный файл, если он существует
         chart_file = session.get('chart_file')
@@ -49,49 +56,51 @@ def index():
             try:
                 os.remove(chart_file)
             except Exception:
-                pass # Игнорируем ошибки при удалении
+                pass
         
-        # Очищаем данные сессии
+        # Очистка данных сессии
         session.pop('chart_file', None)
         session.pop('chart_type', None)
         session.pop('chart_filename', None)
 
+    # Обработка запроса на загрузку файла
     if request.method == 'POST':
         if 'file' not in request.files:
             flash("Файл не найден", 'danger')
             return redirect(request.url)
         
+        # Получаем файл из запроса
         file = request.files['file']
-        
+        # Проверка, если файл не выбран
         if file.filename == '':
-            flash("Файл не выбран", 'danger')  # Используем flash для ошибки
+            flash("Файл не выбран", 'danger')
             return redirect(request.url)
-        
+        # Проверка, если файл не поддерживаемый
         if not allowed_file(file.filename):
             flash("Неподдерживаемый формат файла. Пожалуйста, загрузите файл в формате CSV или Excel.", 'danger')
             return redirect(request.url)
 
         try:
-            # Сохраняем файл
+            # Сохраняем файл в папку uploads
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
             file.save(filepath)
-
             # Читаем файл в pandas
             if file.filename.endswith('.csv'):
                 df = pd.read_csv(filepath)
             else:
                 df = pd.read_excel(filepath, engine='openpyxl')
-
             # Сохраняем путь к файлу и данные в сессии
             session['file_path'] = filepath
-            session['columns'] = df.columns.tolist()  # сохраняем список колонок в сессии
+            session['columns'] = df.columns.tolist()  # Сохраняем список колонок в сессии
 
-            return redirect(url_for('select_action'))  # Переход на страницу с действиями
+            return redirect(url_for('select_action'))  # Переход на страницу выбора действий
         
+        # Обработка ошибок
         except Exception as e:
             flash(f"Ошибка при загрузке файла! Текст ошибки: {str(e)}", 'danger')
             return redirect(request.url)
 
+    # Отображение главной страницы
     return render_template('index.html')
 
 
@@ -101,7 +110,7 @@ def select_action():
     if 'file_path' not in session:
         return redirect(url_for('index'))
 
-    # Очищаем данные о графике при переходе на страницу выбора действия
+    # Очистка данных о графике при переходе на страницу выбора действия
     if 'chart_file' in session:
         # Удаляем временный файл, если он существует
         chart_file = session.get('chart_file')
@@ -109,9 +118,9 @@ def select_action():
             try:
                 os.remove(chart_file)
             except Exception:
-                pass # Игнорируем ошибки при удалении
+                pass
         
-        # Очищаем данные сессии
+        # очистка данных сессии
         session.pop('chart_file', None)
         session.pop('chart_type', None)
         session.pop('chart_filename', None)
@@ -147,31 +156,40 @@ def explore():
         session.pop('chart_filename', None)
 
     try:
+        # Читаем файл в pandas
         df = pd.read_csv(session['file_path']) if session['file_path'].endswith('.csv') else pd.read_excel(session['file_path'], engine='openpyxl')
+        # Получаем размер таблицы
+        shape = df.shape
 
         # Получаем параметр страницы из запроса (по умолчанию 1)
         page = request.args.get('page', 1, type=int)
         rows_per_page = 15
-        
         # Определяем общее количество страниц
         total_pages = (len(df) + rows_per_page - 1) // rows_per_page
-        
         # Проверяем корректность номера страницы
         if page < 1:
             page = 1
         elif page > total_pages:
             page = total_pages
-        
         # Вычисляем индексы начала и конца для выбранной страницы
         start_idx = (page - 1) * rows_per_page
         end_idx = min(start_idx + rows_per_page, len(df))
-        
         # Получаем данные для текущей страницы
         page_data = df.iloc[start_idx:end_idx]
-        
-        shape = df.shape
+        # Информация о пагинации
+        pagination = {
+            'current_page': page,
+            'total_pages': total_pages,
+            'has_prev': page > 1,
+            'has_next': page < total_pages,
+            'is_first_page': page == 1,
+            'is_last_page': page == total_pages,
+            'rows_showing': f"Строки {start_idx + 1}-{end_idx} из {len(df)}"
+        }
+        # Получаем заголовки таблицы и преобразуем в HTML
         head = page_data.to_html(classes='table table-bordered', index=False)
         
+        # Получаем типы данных для каждого столбца
         dtypes = df.dtypes.reset_index()
         dtypes.columns = ['Колонка', 'Тип данных']
         # Пояснения к типам данных
@@ -186,12 +204,9 @@ def explore():
         dtypes['Тип данных'] = dtypes['Тип данных'].astype(str)
         dtypes['Тип данных'] = dtypes['Тип данных'].apply(lambda x: dtype_explanations.get(x, x + ' - другой тип'))
 
-        nulls = df.isnull().sum().reset_index()
-        nulls.columns = ['Колонка', 'Пропущенные значения']
-
+        # Получаем статистику для всех столбцов
         describe = df.describe(include='all').reset_index()
-
-        # Переименование статистик для пользователя
+        # Переименовываем статистики для пользователя
         translations = {
             'count': 'count - кол-во',
             'mean': 'mean - среднее',
@@ -207,29 +222,31 @@ def explore():
             'first': 'first - первая дата',
             'last': 'last - последняя дата'
         }
-        
         describe['index'] = describe['index'].apply(lambda x: translations.get(x, x))
         describe = describe.fillna('')
         # Переименовываем заголовок первого столбца
         describe.rename(columns={'index': 'Показатель'}, inplace=True)
 
+        # Получаем количество пропущенных значений для каждого столбца
+        nulls = df.isnull().sum().reset_index()
+        nulls.columns = ['Колонка', 'Пропущенные значения']
+
         # Анализ аномальных значений
         anomalies = []
+        # Получаем числовые столбцы
         numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns
-        
+        # Анализируем аномальные значения для числовых столбцов
         for column in numeric_columns:
             # Вычисляем квартили и межквартильный размах
             Q1 = df[column].quantile(0.25)
             Q3 = df[column].quantile(0.75)
             IQR = Q3 - Q1
-            
             # Определяем границы выбросов
             lower_bound = Q1 - 1.5 * IQR
             upper_bound = Q3 + 1.5 * IQR
-            
             # Находим количество выбросов
             outliers_count = len(df[(df[column] < lower_bound) | (df[column] > upper_bound)])
-            
+            # Если есть аномалии, добавляем их в список
             if outliers_count > 0:
                 anomalies.append({
                     'Колонка': column,
@@ -237,25 +254,14 @@ def explore():
                     'Нижняя граница IQR': round(lower_bound, 2),
                     'Верхняя граница IQR': round(upper_bound, 2)
                 })
-        
-        # Создаем DataFrame с аномалиями и конвертируем в HTML
+        # Создаем датафрейм с аномалиями и конвертируем в HTML
         if anomalies:
             anomalies_df = pd.DataFrame(anomalies)
             anomalies_html = anomalies_df.to_html(classes='table table-bordered', index=False)
         else:
             anomalies_html = '<p>Аномальных значений не обнаружено</p>'
 
-        # Информация о пагинации
-        pagination = {
-            'current_page': page,
-            'total_pages': total_pages,
-            'has_prev': page > 1,
-            'has_next': page < total_pages,
-            'is_first_page': page == 1,
-            'is_last_page': page == total_pages,
-            'rows_showing': f"Строки {start_idx + 1}-{end_idx} из {len(df)}"
-        }
-
+        # Возвращаем страницу с данными
         return render_template(
             'explore.html',
             shape=shape,
@@ -269,184 +275,6 @@ def explore():
     except Exception as e:
         flash(f"Ошибка при чтении файла: {str(e)}", 'danger')
         return redirect(url_for('select_action'))
-
-# Визуализация данных
-@app.route('/visualize', methods=['GET', 'POST'])
-def visualize():
-    if 'file_path' not in session:
-        return redirect(url_for('index'))
-    
-    # Очищаем возможные сообщения об ошибках, связанные с графиком
-    if 'chart_error' in session:
-        session.pop('chart_error')
-
-    try:
-        df = pd.read_csv(session['file_path']) if session['file_path'].endswith('.csv') else pd.read_excel(session['file_path'], engine='openpyxl')
-        columns = df.columns.tolist()
-        
-        # Значения для повторного отображения выбранных опций
-        context = {
-            'columns': columns,
-            'chart_type': request.form.get('chart_type', 'line'),
-            'x_column': request.form.get('x_column'),
-            'y_column': request.form.get('y_column')
-        }
-
-        if request.method == 'POST':
-            try:
-                chart_type = request.form['chart_type']
-                
-                # Для тепловой карты не нужно выбирать переменные
-                if chart_type != 'heatmap':
-                    x_column = request.form['x_column']
-                    
-                    # Получаем y_column только если он нужен для данного типа графика
-                    y_column = None
-                    if chart_type in ['line', 'scatter', 'area']:
-                        if 'y_column' not in request.form:
-                            return render_template('visualize.html', error="Необходимо выбрать переменную для оси Y", **context)
-                        y_column = request.form['y_column']
-                else:
-                    # Для тепловой карты используем только числовые столбцы
-                    numeric_df = df.select_dtypes(include=['float64', 'int64'])
-                    if numeric_df.empty or numeric_df.shape[1] < 2:
-                        return render_template('visualize.html', 
-                                              error="Для построения тепловой карты необходимо минимум 2 числовых столбца в датасете",
-                                              **context)
-                    x_column = None
-                    y_column = None
-                
-                plt.figure(figsize=(10, 6))
-                
-                try:
-                    # Тепловая карта (особая обработка)
-                    if chart_type == 'heatmap':
-                        # Вычисляем корреляцию только для числовых столбцов
-                        numeric_df = df.select_dtypes(include=['float64', 'int64'])
-                        corr = numeric_df.corr()
-                        sns.heatmap(corr, annot=True, cmap='coolwarm', fmt=".2f")
-                        plt.title('Тепловая карта корреляций числовых переменных')
-                    # Линейный график
-                    elif chart_type == 'line':
-                        plt.plot(df[x_column], df[y_column])
-                    # Диаграмма рассеяния
-                    elif chart_type == 'scatter':
-                        plt.scatter(df[x_column], df[y_column])
-                    # Гистограмма
-                    elif chart_type == 'hist':
-                        plt.hist(df[x_column], bins=20)
-                    # Боксплот
-                    elif chart_type == 'boxplot':
-                        sns.boxplot(x=df[x_column])
-                    # Круговая диаграмма
-                    elif chart_type == 'pie':
-                        df[x_column].value_counts().plot.pie(autopct='%1.1f%%')
-                    # Столбчатая диаграмма
-                    elif chart_type == 'bar':
-                        df[x_column].value_counts().plot.bar()
-                    # Диаграмма с областями (Area chart)
-                    elif chart_type == 'area':
-                        plt.fill_between(df[x_column], df[y_column], color="skyblue", alpha=0.4)
-                        plt.plot(df[x_column], df[y_column], color="Slateblue", alpha=0.6)
-                    
-                    # Настройка заголовка и подписей осей для всех типов кроме тепловой карты
-                    if chart_type != 'heatmap':
-                        title = f'{chart_type.capitalize()} для {x_column}'
-                        if y_column:
-                            title += f' и {y_column}'
-                        
-                        plt.title(title)
-                        plt.xlabel('Фактические значения', fontsize=12)
-                        plt.ylabel('Предсказанные значения', fontsize=12)
-                    
-                    # Обеспечиваем чистый буфер
-                    plt.tight_layout()
-                    
-                    # Сохранение графика в буфер
-                    buf = BytesIO()
-                    plt.savefig(buf, format='png', dpi=300, bbox_inches='tight')
-                    buf.seek(0)
-                    
-                    # Сохраняем данные в файловую систему вместо сессии
-                    chart_file = os.path.join(app.config['UPLOAD_FOLDER'], 'temp_chart.png')
-                    with open(chart_file, 'wb') as f:
-                        f.write(buf.getvalue())
-                    
-                    # Формируем имя файла для скачивания
-                    if chart_type == 'heatmap':
-                        filename = f"chart_{chart_type}_correlations.png"
-                    else:
-                        filename = f"chart_{chart_type}_{x_column}.png"
-                        if y_column:
-                            filename = f"chart_{chart_type}_{x_column}_{y_column}.png"
-                    
-                    # Сохраняем путь к файлу в сессии
-                    session['chart_file'] = chart_file
-                    session['chart_type'] = chart_type
-                    session['chart_filename'] = filename
-                    
-                    # Кодируем для отображения на странице
-                    image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
-                    
-                    buf.close()
-                    plt.close()
-                    
-                    # Обновляем context для правильного отображения выбранных опций
-                    context.update({
-                        'image': image_base64, 
-                        'x_column': x_column,
-                        'y_column': y_column,
-                        'chart_type': chart_type
-                    })
-                    
-                    return render_template('visualize.html', **context)
-                
-                except Exception as e:
-                    plt.close()  # Закрываем фигуру при ошибке
-                    return render_template('visualize.html', error=f"Ошибка при построении графика: {str(e)}", **context)
-                
-            except Exception as e:
-                if 'plt' in locals():
-                    plt.close()  # Закрываем фигуру при ошибке
-                return render_template('visualize.html', error=f"Ошибка: {str(e)}", **context)
-
-        return render_template('visualize.html', **context)
-    except Exception as e:
-        flash(f"Ошибка при чтении файла: {str(e)}", 'danger')
-        return redirect(url_for('index'))
-
-# Скачать график
-@app.route('/download_chart', methods=['GET'])
-def download_chart():
-    # Проверяем наличие файла графика
-    model_index = request.args.get('model_index', 0, type=int)
-    
-    if 'chart_files' not in session or not session['chart_files']:
-        flash("График не найден", 'danger')
-        return redirect(url_for('training_models'))
-    
-    chart_files = session['chart_files']
-    
-    # Проверяем, что индекс модели корректный
-    if model_index < 0 or model_index >= len(chart_files):
-        flash("Указанный график не найден", 'danger')
-        return redirect(url_for('training_models'))
-    
-    chart_file = chart_files[model_index]
-    
-    if not os.path.exists(chart_file):
-        flash("Файл графика не найден", 'danger')
-        return redirect(url_for('training_models'))
-    
-    # Получаем имя файла для скачивания
-    filename = os.path.basename(chart_file)
-    
-    # Отправляем файл пользователю
-    try:
-        return send_file(chart_file, as_attachment=True, download_name=filename)
-    except Exception as e:
-        flash(f"Ошибка при скачивании файла: {str(e)}", 'danger')
-        return redirect(url_for('training_models'))
 
 # Метод для получения уникальных значений столбца
 @app.route('/get_unique_values')
@@ -476,6 +304,7 @@ def get_unique_values():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Обработка данных
 @app.route('/process_data', methods=['GET', 'POST'])
 def process_data():
     if 'file_path' not in session:
@@ -638,6 +467,12 @@ def process_data():
                     else:
                         df.drop(columns=columns_to_drop, inplace=True)
                         flash(f'Столбцы {", ".join(columns_to_drop)} были удалены', 'success')
+                    # Проверяем, не стал ли датасет пустым после удаления
+                    if df.empty:
+                        df = original_df.copy()
+                        flash("Удаление не применено, так как результат был бы пустым.", 'danger')
+                    else:
+                        flash(f'Столбцы {", ".join(columns_to_drop)} были удалены', 'success')
                 except Exception as e:
                     flash(f"Ошибка при удалении столбцов: {e}", 'danger')
 
@@ -652,10 +487,11 @@ def process_data():
                     else:
                         # Сохраняем количество строк до фильтрации
                         original_count = len(df)
-                        
+                        # Преобразуем значения в числовой формат, если столбец числовой
+                        if df[value_column].dtype in ['int64', 'float64']:
+                            column_values = [float(val) if '.' in val else int(val) for val in column_values]
                         # Удаляем строки с выбранными значениями
                         df = df[~df[value_column].isin(column_values)]
-                        
                         # Проверяем, не стал ли датасет пустым после удаления
                         if df.empty:
                             # Если датасет пуст, отменяем удаление и возвращаем исходный датасет
@@ -679,10 +515,11 @@ def process_data():
                     else:
                         # Сохраняем количество строк до фильтрации
                         original_count = len(df)
-                        
+                        # Преобразуем значения в числовой формат, если столбец числовой
+                        if df[value_column].dtype in ['int64', 'float64']:
+                            column_values = [float(val) if '.' in val else int(val) for val in column_values]
                         # Оставляем только строки с выбранными значениями
                         df = df[df[value_column].isin(column_values)]
-                        
                         # Проверяем, не стал ли датасет пустым после фильтрации
                         if df.empty:
                             # Если датасет пуст, отменяем фильтрацию и возвращаем исходный датасет
@@ -908,14 +745,9 @@ def process_data():
         flash(f"Ошибка при обработке данных: {str(e)}", 'danger')
         return redirect(url_for('index'))
 
-# Перенаправление со старого URL на новый
-@app.route('/clean_data', methods=['GET', 'POST'])
-def clean_data():
-    return redirect(url_for('process_data'))
-
-# Скачать очищенные данные
-@app.route('/download_cleaned_data', methods=['GET'])
-def download_cleaned_data():
+# Скачать обработанные данные
+@app.route('/download_edited_data', methods=['GET'])
+def download_edited_data():
     if 'file_path' not in session:
         return redirect(url_for('index'))
 
@@ -929,407 +761,226 @@ def download_cleaned_data():
     output = BytesIO()
     df.to_csv(output, index=False)
     output.seek(0)
-
     # Отправляем файл как CSV
-    return send_file(output, mimetype='text/csv', as_attachment=True, download_name="cleaned_data.csv")
+    return send_file(output, mimetype='text/csv', as_attachment=True, download_name="edited_data.csv")
 
-# Прогнозирование
-@app.route('/forecasting', methods=['GET', 'POST'])
-def forecasting():
-    # Параметры пагинации
-    page = request.args.get('page', 1, type=int)
-    per_page = 10  # Количество строк на странице
+# Определяем типы данных для каждого столбца
+def get_column_types(df):
+    """Определяет типы данных для каждого столбца"""
+    numeric_columns = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
+    categorical_columns = df.select_dtypes(include=['object', 'category']).columns.tolist()
+    datetime_columns = df.select_dtypes(include=['datetime64']).columns.tolist()
     
-    # Переменные для хранения сообщений об ошибках
-    model_error = None
-    data_error = None
-    
-    # Базовый контекст
-    context = {
-        'metadata_info': 'Внимание! Для прогнозирования необходимо использовать модель с метаданными, созданную в разделе "Обучение модели прогнозирования".'
+    return {
+        'numeric': numeric_columns,
+        'categorical': categorical_columns,
+        'datetime': datetime_columns
     }
+
+# Проверяем корректность данных для выбранного типа графика
+def validate_chart_data(chart_type, df, x_column=None, y_column=None):
+    """Проверяет корректность данных для выбранного типа графика"""
+    column_types = get_column_types(df)
+    # Проверяем, чтобы для тепловой карты было минимум 2 числовых столбца
+    if chart_type == 'heatmap':
+        if len(column_types['numeric']) < 2:
+            return False, "Для построения тепловой карты необходимо минимум 2 числовых столбца"
+        return True, None
+    # Проверяем, чтобы была выбрана переменная по оси X
+    if not x_column:
+        return False, "Необходимо выбрать переменную по оси X"
+    # Проверяем, чтобы была выбрана переменная по оси Y для лин. гр., диагр. рас. и диагр. с обл.
+    if chart_type in ['line', 'scatter', 'area']:
+        if not y_column:
+            return False, "Необходимо выбрать переменную по оси Y"
+        if x_column not in column_types['numeric'] and x_column not in column_types['datetime']:
+            return False, f"Переменная {x_column} должна быть числовой или датой"
+        if y_column not in column_types['numeric']:
+            return False, f"Переменная {y_column} должна быть числовой"
+    # Проверяем, чтобы была выбрана переменная по оси X для гистограммы и боксплота
+    elif chart_type in ['hist', 'boxplot']:
+        if x_column not in column_types['numeric']:
+            return False, f"Переменная {x_column} должна быть числовой"
+    # Проверяем, чтобы была выбрана переменная по оси X для круговой и столбчатой диаграмм
+    elif chart_type in ['pie', 'bar']:
+        if x_column not in column_types['categorical']:
+            return False, f"Переменная {x_column} должна быть категориальной"
     
-    if request.method == 'POST' and request.form.get('submit_action') == 'predict':
-        # Проверка наличия загруженных файлов
-        model_file = request.files.get('model_file')
-        test_data_file = request.files.get('test_data_file')
+    return True, None
+
+# Визуализация данных
+@app.route('/visualize', methods=['GET', 'POST'])
+def visualize():
+    if 'file_path' not in session:
+        return redirect(url_for('index'))
+    
+    try:
+        df = pd.read_csv(session['file_path']) if session['file_path'].endswith('.csv') else pd.read_excel(session['file_path'], engine='openpyxl')
+        column_types = get_column_types(df)
         
-        # Проверяем наличие файлов в текущем запросе и в сессии
-        has_model = (model_file and model_file.filename != '') or 'model_path' in session
-        has_data = (test_data_file and test_data_file.filename != '') or 'test_data_path' in session
-        
-        # Если нет ни модели, ни данных, показываем обе ошибки
-        if not has_model and not has_data:
-            model_error = 'Необходимо загрузить модель прогнозирования'
-            data_error = 'Необходимо загрузить инференсные данные'
-            context['model_error'] = model_error
-            context['data_error'] = data_error
-            return render_template('forecasting.html', **context)
-        
-        # Если нет только модели, показываем ошибку только для модели
-        if not has_model:
-            model_error = 'Необходимо загрузить модель прогнозирования'
-            context['model_error'] = model_error
-            return render_template('forecasting.html', **context)
-        
-        # Если нет только данных, показываем ошибку только для данных
-        if not has_data:
-            data_error = 'Необходимо загрузить инференсные данные'
-            context['data_error'] = data_error
-            return render_template('forecasting.html', **context)
-        
-        # Флаги для отслеживания необходимости загрузки новых файлов
-        need_to_load_model = model_file and model_file.filename != ''
-        need_to_load_data = test_data_file and test_data_file.filename != ''
-        
-        # Путь к модели (новый или существующий)
-        model_path = None
-        test_data_path = None
-        
-        # Обработка загрузки модели
-        if need_to_load_model:
-            if not model_file.filename.endswith('.joblib'):
-                model_error = 'Неподдерживаемый формат файла. Пожалуйста, загрузите файл в формате JOBLIB.'
-                context['model_error'] = model_error
-                return render_template('forecasting.html', **context)
-            
+        # Значения для повторного отображения выбранных опций
+        context = {
+            'columns': df.columns.tolist(),
+            'numeric_columns': column_types['numeric'],
+            'categorical_columns': column_types['categorical'],
+            'datetime_columns': column_types['datetime'],
+            'chart_type': request.form.get('chart_type', 'line'),
+            'x_column': request.form.get('x_column'),
+            'y_column': request.form.get('y_column')
+        }
+
+        if request.method == 'POST':
             try:
-                # Сохраняем файл модели
-                model_filepath = os.path.join(app.config['UPLOAD_FOLDER'], model_file.filename)
-                model_file.save(model_filepath)
+                chart_type = request.form['chart_type']
                 
-                # Проверяем, что это действительно модель
-                try:
-                    model = joblib.load(model_filepath)
-                    # Проверяем, что модель имеет необходимые методы (например, predict)
-                    # Сначала проверяем, является ли это новым форматом с метаданными
-                    if isinstance(model, dict) and 'model' in model and 'feature_columns' in model and 'target_column' in model:
-                        # Проверяем, что модель внутри словаря имеет метод predict
-                        if not hasattr(model['model'], 'predict'):
-                            raise ValueError('Загруженный файл не содержит модель прогнозирования')
-                    # Проверяем стандартный формат модели
-                    elif not hasattr(model, 'predict'):
-                        raise ValueError('Загруженный файл не содержит модель прогнозирования')
-                    
-                    # Если есть предыдущая модель, удаляем её
-                    if 'model_path' in session and os.path.exists(session['model_path']) and session['model_path'] != model_filepath:
-                        try:
-                            os.remove(session['model_path'])
-                        except Exception:
-                            pass
-                    
-                    # Сохраняем путь к файлу модели в сессии
-                    session['model_path'] = model_filepath
-                    model_path = model_filepath
-                    
-                except Exception as e:
-                    # Если возникла ошибка при загрузке модели, удаляем файл
-                    if os.path.exists(model_filepath):
-                        os.remove(model_filepath)
-                    model_error = f'Ошибка при загрузке модели: {str(e)}'
-                    context['model_error'] = model_error
-                    return render_template('forecasting.html', **context)
-            except Exception as e:
-                model_error = f'Ошибка при сохранении файла модели: {str(e)}'
-                context['model_error'] = model_error
-                return render_template('forecasting.html', **context)
-        elif 'model_path' in session:
-            # Используем ранее загруженную модель
-            model_path = session['model_path']
-        else:
-            # Модель не загружена
-            model_error = 'Необходимо загрузить модель прогнозирования'
-            context['model_error'] = model_error
-            return render_template('forecasting.html', **context)
-        
-        # Обработка загрузки тестовых данных
-        if need_to_load_data:
-            if not allowed_file(test_data_file.filename):
-                data_error = 'Неподдерживаемый формат файла. Пожалуйста, загрузите файл в формате CSV или Excel.'
-                context['data_error'] = data_error
-                return render_template('forecasting.html', **context)
-            
-            try:
-                # Сохраняем файл с тестовыми данными
-                test_data_filepath = os.path.join(app.config['UPLOAD_FOLDER'], test_data_file.filename)
-                test_data_file.save(test_data_filepath)
+                # Для тепловой карты не нужно выбирать переменные
+                if chart_type != 'heatmap':
+                    x_column = request.form['x_column']
+                    y_column = None
+                    if chart_type in ['line', 'scatter', 'area']:
+                        y_column = request.form['y_column']
+                else:
+                    x_column = None
+                    y_column = None
                 
-                # Проверяем, что файл можно прочитать как датасет
+                # Проверка данных
+                is_valid, error_message = validate_chart_data(chart_type, df, x_column, y_column)
+                if not is_valid:
+                    return render_template('visualize.html', error=error_message, **context)
+                
+                plt.figure(figsize=(10, 6))
+                
                 try:
-                    if test_data_file.filename.endswith('.csv'):
-                        df = pd.read_csv(test_data_filepath)
+                    # Тепловая карта (особая обработка)
+                    if chart_type == 'heatmap':
+                        numeric_df = df.select_dtypes(include=['float64', 'int64'])
+                        corr = numeric_df.corr()
+                        sns.heatmap(corr, annot=True, cmap='coolwarm', fmt=".2f")
+                        plt.title('Тепловая карта корреляций числовых переменных')
+                    # Линейный график
+                    elif chart_type == 'line':
+                        plt.plot(df[x_column], df[y_column])
+                    # Диаграмма рассеяния
+                    elif chart_type == 'scatter':
+                        plt.scatter(df[x_column], df[y_column])
+                    # Гистограмма
+                    elif chart_type == 'hist':
+                        plt.hist(df[x_column], bins='auto')
+                    # Боксплот
+                    elif chart_type == 'boxplot':
+                        sns.boxplot(x=df[x_column])
+                    # Круговая диаграмма
+                    elif chart_type == 'pie':
+                        df[x_column].value_counts().plot.pie(autopct='%1.1f%%')
+                    # Столбчатая диаграмма
+                    elif chart_type == 'bar':
+                        df[x_column].value_counts().plot.bar()
+                    # Диаграмма с областями
+                    elif chart_type == 'area':
+                        plt.fill_between(df[x_column], df[y_column], color="skyblue", alpha=0.4)
+                        plt.plot(df[x_column], df[y_column], color="Slateblue", alpha=0.6)
+                    
+                    # Настройка заголовка и подписей осей для всех типов кроме тепловой карты
+                    if chart_type != 'heatmap':
+                        title = f'{chart_type.capitalize()} для {x_column}'
+                        if y_column:
+                            title += f' и {y_column}'
+                        
+                        plt.title(title)
+                        plt.xlabel(x_column, fontsize=12)
+                        if y_column:
+                            plt.ylabel(y_column, fontsize=12)
+                    # Улучшаем расположение элементов на графике
+                    plt.tight_layout()
+                    
+                    # Сохранение графика в буфер
+                    buf = BytesIO()
+                    plt.savefig(buf, format='png', dpi=300, bbox_inches='tight')
+                    buf.seek(0)
+                    
+                    # Сохраняем данные в файловую систему
+                    chart_file = os.path.join(app.config['UPLOAD_FOLDER'], 'temp_chart.png')
+                    with open(chart_file, 'wb') as f:
+                        f.write(buf.getvalue())
+                    
+                    # Формируем имя файла для скачивания
+                    if chart_type == 'heatmap':
+                        filename = f"chart_{chart_type}_correlations.png"
                     else:
-                        df = pd.read_excel(test_data_filepath, engine='openpyxl')
+                        filename = f"chart_{chart_type}_{x_column}.png"
+                        if y_column:
+                            filename = f"chart_{chart_type}_{x_column}_{y_column}.png"
                     
-                    # Если есть предыдущий файл с тестовыми данными, удаляем его
-                    if 'test_data_path' in session and os.path.exists(session['test_data_path']) and session['test_data_path'] != test_data_filepath:
-                        try:
-                            os.remove(session['test_data_path'])
-                        except Exception:
-                            pass
+                    # Сохраняем путь к файлу в сессии
+                    session['chart_file'] = chart_file
+                    session['chart_type'] = chart_type
+                    session['chart_filename'] = filename
                     
-                    # Сохраняем путь к файлу с тестовыми данными в сессии
-                    session['test_data_path'] = test_data_filepath
-                    test_data_path = test_data_filepath
+                    # Кодируем для отображения на странице
+                    image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
                     
+                    buf.close()
+                    plt.close()
+                    
+                    # Обновляем context для правильного отображения выбранных опций
+                    context.update({
+                        'image': image_base64, 
+                        'x_column': x_column,
+                        'y_column': y_column,
+                        'chart_type': chart_type
+                    })
+                    
+                    return render_template('visualize.html', **context)
+                
                 except Exception as e:
-                    # Если возникла ошибка при чтении данных, удаляем файл
-                    if os.path.exists(test_data_filepath):
-                        os.remove(test_data_filepath)
-                    data_error = f'Ошибка при чтении файла с инференсными данными: {str(e)}'
-                    context['data_error'] = data_error
-                    return render_template('forecasting.html', **context)
+                    plt.close()  # Закрываем фигуру при ошибке
+                    return render_template('visualize.html', error=f"Ошибка при построении графика: {str(e)}", **context)
+                
             except Exception as e:
-                data_error = f'Ошибка при сохранении файла с инференсными данными: {str(e)}'
-                context['data_error'] = data_error
-                return render_template('forecasting.html', **context)
-        elif 'test_data_path' in session:
-            # Используем ранее загруженные данные
-            test_data_path = session['test_data_path']
-        else:
-            # Данные не загружены
-            data_error = 'Необходимо загрузить инференсные данные'
-            context['data_error'] = data_error
-            return render_template('forecasting.html', **context)
-        
-        # Теперь выполняем прогнозирование
+                if 'plt' in locals():
+                    plt.close()  # Закрываем фигуру при ошибке
+                return render_template('visualize.html', error=f"Ошибка: {str(e)}", **context)
+
+        return render_template('visualize.html', **context)
+    except Exception as e:
+        flash(f"Ошибка при чтении файла: {str(e)}", 'danger')
+        return redirect(url_for('index'))
+
+# Скачать график
+@app.route('/download_chart', methods=['GET'])
+def download_chart():
+    model_index = request.args.get('model_index', None, type=int)
+    # Если есть индекс и chart_files — скачиваем график модели
+    if model_index is not None and 'chart_files' in session and session['chart_files']:
+        chart_files = session['chart_files']
+        if model_index < 0 or model_index >= len(chart_files):
+            flash("Указанный график не найден", 'danger')
+            return redirect(url_for('training_models'))
+        chart_file = chart_files[model_index]
+        if not os.path.exists(chart_file):
+            flash("Файл графика не найден", 'danger')
+            return redirect(url_for('training_models'))
+        filename = f"chart_model_{model_index}.png"
         try:
-            # Загружаем модель
-            model = joblib.load(model_path)
-            
-            # Проверяем, содержит ли модель метаданные (новый формат)
-            model_data = None
-            if isinstance(model, dict) and 'model' in model and 'feature_columns' in model and 'target_column' in model:
-                model_data = model
-                model = model_data['model']
-                required_features = model_data['feature_columns']
-            
-            # Загружаем данные
-            if test_data_path.endswith('.csv'):
-                df = pd.read_csv(test_data_path)
-            else:
-                df = pd.read_excel(test_data_path, engine='openpyxl')
-            
-            # Определяем требуемые признаки для модели
-            required_features = []
-            
-            # Если у нас уже есть информация о признаках из метаданных
-            if model_data and model_data['feature_columns']:
-                required_features = model_data['feature_columns']
-            # Иначе пытаемся получить информацию из самой модели
-            elif hasattr(model, 'feature_names_in_'):
-                # Для sklearn >= 1.0
-                required_features = model.feature_names_in_.tolist()
-            elif hasattr(model, '_Booster') and hasattr(model._Booster, 'feature_names'):
-                # Для XGBoost
-                required_features = model._Booster.feature_names
-            elif hasattr(model, 'feature_importances_') and hasattr(model, 'n_features_in_'):
-                # Определяем признаки из обучающих данных, если они доступны
-                if 'training_features' in session:
-                    required_features = session['training_features']
-            
-            # Если список признаков не удалось получить, пробуем определить из самой модели
-            # или использовать все столбцы из датафрейма в качестве признаков
-            if not required_features:
-                try:
-                    # Пробуем получить признаки из различных атрибутов модели
-                    if hasattr(model, 'feature_names_'):
-                        required_features = model.feature_names_
-                    elif hasattr(model, 'get_booster') and hasattr(model.get_booster(), 'feature_names'):
-                        required_features = model.get_booster().feature_names
-                    elif hasattr(model, 'booster') and hasattr(model.booster, 'feature_name'):
-                        required_features = model.booster.feature_name()
-                    elif hasattr(model, 'estimators_') and len(model.estimators_) > 0:
-                        # Для ансамблевых моделей
-                        if hasattr(model.estimators_[0], 'feature_names_in_'):
-                            required_features = model.estimators_[0].feature_names_in_.tolist()
-                except:
-                    # В случае ошибки используем все столбцы
-                    pass
-            
-            # Если у нас есть список требуемых признаков
-            if required_features:
-                # Проверяем наличие всех необходимых признаков в датасете
-                available_features = set(df.columns)
-                missing_features = [feature for feature in required_features if feature not in available_features]
-                
-                if missing_features:
-                    # Если отсутствуют требуемые признаки, сообщаем об этом
-                    data_error = f'В инференсных данных отсутствуют необходимые признаки: {", ".join(missing_features)}'
-                    context['data_error'] = data_error
-                    return render_template('forecasting.html', **context)
-                
-                # Подготавливаем датафрейм для прогнозирования, сохраняя правильный порядок признаков
-                X_inference = df[required_features].copy()
-                
-                # Преобразуем категориальные признаки, если они есть
-                for column in X_inference.columns:
-                    if X_inference[column].dtype == 'object':
-                        try:
-                            X_inference[column] = pd.to_numeric(X_inference[column], errors='ignore')
-                        except:
-                            pass
-                
-                # Сохраняем копию исходных ненормализованных данных
-                X_inference_original = X_inference.copy()
-                
-                # Проверяем, нужно ли нормализовать данные (если модель обучалась на нормализованных данных)
-                if model_data.get('normalized', False):
-                    # Проверяем, есть ли в метаданных информация о scaler
-                    if 'scaler' in model_data and model_data['scaler'] is not None:
-                        # Используем сохраненный scaler для нормализации новых данных
-                        X_inference = model_data['scaler'].transform(X_inference)
-                    else:
-                        # Если scaler не сохранен, но данные нормализовались при обучении,
-                        # нормализуем новые данные с нуля
-                        scaler = StandardScaler()
-                        X_inference = scaler.fit_transform(X_inference)
-                
-                # Делаем прогноз
-                try:
-                    y_pred = model.predict(X_inference)
-                except Exception as e:
-                    # Если не получается сделать прогноз, возвращаем ошибку
-                    data_error = f'Ошибка при прогнозировании. Данные не подходят для модели: {str(e)}'
-                    context['data_error'] = data_error
-                    return render_template('forecasting.html', **context)
-            
-            # Создаем новый датафрейм с исходными ненормализованными признаками
-            result_df = X_inference_original.copy()
-            
-            # Добавляем прогнозы в датафрейм
-            result_df['Prediction'] = y_pred
-            
-            # Сохраняем датафрейм с прогнозами для последующего использования
-            session['prediction_df'] = result_df.to_json()
-            
-            # Определяем тип данных прогноза
-            is_classification = model_data.get('task_type') == 'classification'
-            prediction_type = 'categorical' if is_classification else 'numeric'
-            
-            # Сохраняем тип прогноза для отображения соответствующей гистограммы
-            session['prediction_type'] = prediction_type
-            
-            # Перенаправляем на страницу результатов
-            return redirect(url_for('forecasting'))
-            
+            return send_file(chart_file, mimetype='image/png', as_attachment=True, download_name=filename)
         except Exception as e:
-            flash(f'Ошибка при выполнении прогнозирования: {str(e)}', 'danger')
-            return redirect(url_for('forecasting'))
-    
-    # Если есть данные прогнозов, отображаем их
-    if 'prediction_df' in session:
+            flash(f"Ошибка при скачивании графика: {str(e)}", 'danger')
+            return redirect(url_for('training_models'))
+    # Иначе — скачиваем одиночный график из visualize
+    elif 'chart_file' in session:
+        chart_file = session['chart_file']
+        if not os.path.exists(chart_file):
+            flash("Файл графика не найден", 'danger')
+            return redirect(url_for('visualize'))
+        filename = session.get('chart_filename', 'chart.png')
         try:
-            # Загружаем датафрейм с прогнозами (только нужные признаки и прогнозы)
-            prediction_df = pd.read_json(session['prediction_df'])
-            
-            # Получаем тип прогноза
-            prediction_type = session.get('prediction_type', 'numeric')
-            
-            # Общее количество записей
-            prediction_count = len(prediction_df)
-            
-            # Вычисляем общее количество страниц
-            total_pages = (prediction_count + per_page - 1) // per_page
-            
-            # Корректируем текущую страницу, если она выходит за пределы
-            if page < 1:
-                page = 1
-            elif page > total_pages and total_pages > 0:
-                page = total_pages
-            
-            # Выбираем записи для текущей страницы
-            start_idx = (page - 1) * per_page
-            end_idx = min(start_idx + per_page, prediction_count)
-            
-            # Получаем статистику по прогнозам
-            if prediction_type == 'numeric':
-                prediction_mean = round(prediction_df['Prediction'].mean(), 2)
-                prediction_min = round(prediction_df['Prediction'].min(), 2)
-                prediction_max = round(prediction_df['Prediction'].max(), 2)
-            else:
-                # Для категориальных данных вместо числовых характеристик показываем текстовые
-                most_common = prediction_df['Prediction'].value_counts().index[0]
-                prediction_mean = f"Мода: {most_common}"
-                prediction_min = "N/A"
-                prediction_max = "N/A"
-            
-            # Формируем таблицу для отображения
-            page_df = prediction_df.iloc[start_idx:end_idx]
-            predictions_table = page_df.to_html(classes='table table-striped table-bordered', index=False, justify='left')
-            
-            # Строим гистограмму в зависимости от типа данных
-            plt.figure(figsize=(10, 6))
-            
-            
-            if prediction_type == 'numeric':
-                # Гистограмма для числовых данных
-                sns.histplot(prediction_df['Prediction'], kde=True)
-                plt.title('Распределение прогнозируемых значений')
-                plt.xlabel('Значение')
-                plt.ylabel('Частота')
-                plt.grid(True, linestyle='--', alpha=0.7)
-            else:
-                # Гистограмма для категориальных данных
-                category_counts = prediction_df['Prediction'].value_counts()
-                sns.barplot(x=category_counts.index, y=category_counts.values)
-                plt.title('Распределение прогнозируемых категорий')
-                plt.xlabel('Категория')
-                plt.ylabel('Количество')
-                plt.xticks(rotation=45)
-                plt.grid(True, linestyle='--', alpha=0.7, axis='y')
-            
-            # Сохраняем гистограмму в base64 для отображения
-            buf = BytesIO()
-            plt.tight_layout()
-            plt.savefig(buf, format='png', dpi=300)
-            buf.seek(0)
-            hist_image = base64.b64encode(buf.getvalue()).decode('utf-8')
-            plt.close()
-            
-            # Формируем таблицу статистик
-            describe = prediction_df.describe(include='all').reset_index()
-            translations = {
-                'count': 'count - кол-во',
-                'mean': 'mean - среднее',
-                'std': 'std - стандартное отклонение',
-                'min': 'min - минимум',
-                '25%': '25% - 1-й квартиль',
-                '50%': '50% - медиана',
-                '75%': '75% - 3-й квартиль',
-                'max': 'max - максимум',
-                'unique': 'unique - уникальных значений',
-                'top': 'top - наиболее частое значение',
-                'freq': 'freq - частота самого частого значения',
-                'first': 'first - первая дата',
-                'last': 'last - последняя дата'
-            }
-            describe['index'] = describe['index'].apply(lambda x: translations.get(x, x))
-            describe = describe.fillna('')
-            describe.rename(columns={'index': 'Показатель'}, inplace=True)
-            stats_table = describe.to_html(classes='table table-striped table-bordered', index=False)
-            
-            # Добавляем результаты в контекст
-            context.update({
-                'predictions': True,  # Флаг наличия прогнозов
-                'predictions_table': predictions_table,
-                'stats_table': stats_table,
-                'hist_image': hist_image,
-                'prediction_count': prediction_count,
-                'prediction_mean': prediction_mean,
-                'prediction_min': prediction_min,
-                'prediction_max': prediction_max,
-                'current_page': page,
-                'total_pages': total_pages
-            })
-        
+            return send_file(chart_file, mimetype='image/png', as_attachment=True, download_name=filename)
         except Exception as e:
-            flash(f'Ошибка при отображении результатов прогнозирования: {str(e)}', 'danger')
-            # Если возникла ошибка, удаляем данные прогнозов
-            session.pop('prediction_df', None)
-            session.pop('prediction_type', None)
-    
-    return render_template('forecasting.html', **context)
+            flash(f"Ошибка при скачивании графика: {str(e)}", 'danger')
+            return redirect(url_for('visualize'))
+    else:
+        flash("График не найден", 'danger')
+        return redirect(url_for('visualize'))
 
 @app.route('/training_models', methods=['GET', 'POST'])
 def training_models():
@@ -1417,7 +1068,7 @@ def training_models():
                 # Предобработка категориальных данных
                 X_processed = X.copy()
                 encoders = {}
-                
+                # Кодирование категориальных данных
                 for column in X.columns:
                     if X[column].dtype == 'object' or X[column].dtype.name == 'category':
                         encoder = LabelEncoder()
@@ -1451,12 +1102,7 @@ def training_models():
                         elif model_type == 'gradient_boosting':
                             model = GradientBoostingRegressor(n_estimators=100, random_state=42)
                             model_name = "Градиентный бустинг (регрессия)"
-                        elif model_type == 'svr':
-                            model = SVR()
-                            model_name = "Метод опорных векторов (регрессия)"
-                        
                         model.fit(X_train, y_train)
-                        
                         # Предсказание
                         y_pred = model.predict(X_test)
                         
@@ -1481,22 +1127,19 @@ def training_models():
                         # Построение графика
                         plt.figure(figsize=(10, 6))
                         scatter = plt.scatter(y_test, y_pred, alpha=0.6, edgecolor='k', label='Предсказания')
-                        
                         # Добавляем линию идеального предсказания
                         min_val = min(min(y_test), min(y_pred))
                         max_val = max(max(y_test), max(y_pred))
                         ideal_line = plt.plot([min_val, max_val], [min_val, max_val], 'r--', lw=2, label='Идеальное предсказание')
-                        
+                        # Добавляем подписи осей и заголовок
                         plt.xlabel('Фактические значения', fontsize=12)
                         plt.ylabel('Предсказанные значения', fontsize=12)
                         plt.title(f'График предсказаний - {model_name}', fontsize=14)
                         plt.grid(True, linestyle='--', alpha=0.7)
                         plt.legend(loc='best', fontsize=10)
-                        
                         # Устанавливаем равный масштаб для обеих осей
                         ax = plt.gca()
                         ax.set_aspect('equal', adjustable='box')
-                        
                         # Добавляем информацию о метриках на график
                         metrics_text = f"R² = {metrics['R2']}\nRMSE = {metrics['RMSE']}\nMAE = {metrics['MAE']}"
                         plt.annotate(metrics_text, xy=(0.05, 0.95), xycoords='axes fraction',
@@ -1509,7 +1152,7 @@ def training_models():
                             target_encoder = LabelEncoder()
                             y = target_encoder.fit_transform(y)
                             y_train, y_test = train_test_split(y, test_size=0.2, random_state=42)
-                        
+                        # Обучение модели
                         if model_type == 'logistic':
                             model = LogisticRegression(max_iter=1000, random_state=42)
                             model_name = "Логистическая регрессия"
@@ -1525,12 +1168,7 @@ def training_models():
                         elif model_type == 'knn':
                             model = KNeighborsClassifier(n_neighbors=5)
                             model_name = "К-ближайших соседей"
-                        elif model_type == 'svc':
-                            model = SVC(probability=True, random_state=42)
-                            model_name = "Метод опорных векторов (классификация)"
-                        
                         model.fit(X_train, y_train)
-                        
                         # Предсказание
                         y_pred = model.predict(X_test)
                         
@@ -1555,22 +1193,19 @@ def training_models():
                         # Построение матрицы ошибок
                         plt.figure(figsize=(10, 6))
                         cm = confusion_matrix(y_test, y_pred)
-                        
                         # Улучшенная тепловая карта
                         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', linewidths=.5,
                                     annot_kws={"size": 12}, cbar_kws={"shrink": .8})
-                        
                         # Добавляем названия классов, если возможно
                         if hasattr(model, 'classes_') and len(model.classes_) <= 10:
                             class_names = model.classes_
                             tick_marks = np.arange(len(class_names))
                             plt.xticks(tick_marks + 0.5, class_names, rotation=45, ha='right')
                             plt.yticks(tick_marks + 0.5, class_names, rotation=0)
-                        
+                        # Добавляем подписи осей и заголовок
                         plt.xlabel('Предсказанные метки', fontsize=12)
                         plt.ylabel('Истинные метки', fontsize=12)
                         plt.title(f'Матрица ошибок - {model_name}', fontsize=14)
-                        
                         # Добавляем информацию о метриках на график
                         metrics_text = f"Accuracy = {metrics['Accuracy']}\nPrecision = {metrics['Precision']}\nRecall = {metrics['Recall']}\nF1 = {metrics['F1']}"
                         plt.annotate(metrics_text, xy=(0.05, 0.05), xycoords='axes fraction',
@@ -1663,10 +1298,8 @@ def download_model():
     feature_columns = session.get('feature_columns', [])
     target_column = session.get('target_column', '')
     task_type = session.get('task_type', '')
-    
     # Загружаем модель из файла
     model = joblib.load(model_file)
-    
     # Создаем словарь с метаданными модели
     model_data = {
         'model': model,
@@ -1676,20 +1309,401 @@ def download_model():
         'normalized': True, # Указываем, что данные были нормализованы при обучении
         'scaler': scaler if 'scaler' in locals() else None # Сохраняем scaler, если он есть
     }
-    
     # Создаем новый файл с метаданными
     model_metadata_filename = os.path.splitext(model_file)[0] + '_with_metadata.joblib'
     joblib.dump(model_data, model_metadata_filename)
-    
     # Получаем имя файла для скачивания
     filename = os.path.basename(model_metadata_filename)
-    
     # Отправляем файл пользователю
     try:
         return send_file(model_metadata_filename, as_attachment=True, download_name=filename)
     except Exception as e:
         flash(f"Ошибка при скачивании модели: {str(e)}", 'danger')
         return redirect(url_for('training_models'))
+
+# Прогнозирование
+@app.route('/forecasting', methods=['GET', 'POST'])
+def forecasting():
+    # Параметры пагинации
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # Количество строк на странице
+    
+    # Переменные для хранения сообщений об ошибках
+    model_error = None
+    data_error = None
+    
+    # Базовый контекст
+    context = {
+        'metadata_info': 'Внимание! Для прогнозирования необходимо использовать модель с метаданными, созданную в разделе "Обучение модели прогнозирования".'
+    }
+    
+    if request.method == 'POST' and request.form.get('submit_action') == 'predict':
+        # Проверка наличия загруженных файлов
+        model_file = request.files.get('model_file')
+        test_data_file = request.files.get('test_data_file')
+        
+        # Проверяем наличие файлов в текущем запросе и в сессии
+        has_model = (model_file and model_file.filename != '') or 'model_path' in session
+        has_data = (test_data_file and test_data_file.filename != '') or 'test_data_path' in session
+        
+        # Если нет ни модели, ни данных, показываем обе ошибки
+        if not has_model and not has_data:
+            model_error = 'Необходимо загрузить модель прогнозирования'
+            data_error = 'Необходимо загрузить инференсные данные'
+            context['model_error'] = model_error
+            context['data_error'] = data_error
+            return render_template('forecasting.html', **context)
+        
+        # Если нет только модели, показываем ошибку только для модели
+        if not has_model:
+            model_error = 'Необходимо загрузить модель прогнозирования'
+            context['model_error'] = model_error
+            return render_template('forecasting.html', **context)
+        
+        # Если нет только данных, показываем ошибку только для данных
+        if not has_data:
+            data_error = 'Необходимо загрузить инференсные данные'
+            context['data_error'] = data_error
+            return render_template('forecasting.html', **context)
+        
+        # Флаги для отслеживания необходимости загрузки новых файлов
+        need_to_load_model = model_file and model_file.filename != ''
+        need_to_load_data = test_data_file and test_data_file.filename != ''
+        
+        # Путь к модели (новый или существующий)
+        model_path = None
+        test_data_path = None
+        
+        # Обработка загрузки модели
+        if need_to_load_model:
+            if not model_file.filename.endswith('.joblib'):
+                model_error = 'Неподдерживаемый формат файла. Пожалуйста, загрузите файл в формате JOBLIB.'
+                context['model_error'] = model_error
+                return render_template('forecasting.html', **context)
+            try:
+                # Сохраняем файл модели
+                model_filepath = os.path.join(app.config['UPLOAD_FOLDER'], model_file.filename)
+                model_file.save(model_filepath)
+                # Проверяем, что это действительно модель
+                try:
+                    model = joblib.load(model_filepath)
+                    # Проверяем, что модель имеет необходимые методы
+                    if isinstance(model, dict) and 'model' in model and 'feature_columns' in model and 'target_column' in model:
+                        # Проверяем, что модель внутри словаря имеет метод predict
+                        if not hasattr(model['model'], 'predict'):
+                            raise ValueError('Загруженный файл не содержит модель прогнозирования')
+                    # Проверяем стандартный формат модели
+                    elif not hasattr(model, 'predict'):
+                        raise ValueError('Загруженный файл не содержит модель прогнозирования')
+                    # Если есть предыдущая модель, удаляем её
+                    if 'model_path' in session and os.path.exists(session['model_path']) and session['model_path'] != model_filepath:
+                        try:
+                            os.remove(session['model_path'])
+                        except Exception:
+                            pass
+                    # Сохраняем путь к файлу модели в сессии
+                    session['model_path'] = model_filepath
+                    model_path = model_filepath
+                    
+                except Exception as e:
+                    # Если возникла ошибка при загрузке модели, удаляем файл
+                    if os.path.exists(model_filepath):
+                        os.remove(model_filepath)
+                    model_error = f'Ошибка при загрузке модели: {str(e)}'
+                    context['model_error'] = model_error
+                    return render_template('forecasting.html', **context)
+            except Exception as e:
+                model_error = f'Ошибка при сохранении файла модели: {str(e)}'
+                context['model_error'] = model_error
+                return render_template('forecasting.html', **context)
+        elif 'model_path' in session:
+            # Используем ранее загруженную модель
+            model_path = session['model_path']
+        else:
+            # Модель не загружена
+            model_error = 'Необходимо загрузить модель прогнозирования'
+            context['model_error'] = model_error
+            return render_template('forecasting.html', **context)
+        
+        # Обработка загрузки тестовых данных
+        if need_to_load_data:
+            if not allowed_file(test_data_file.filename):
+                data_error = 'Неподдерживаемый формат файла. Пожалуйста, загрузите файл в формате CSV или Excel.'
+                context['data_error'] = data_error
+                return render_template('forecasting.html', **context)
+            try:
+                # Сохраняем файл с тестовыми данными
+                test_data_filepath = os.path.join(app.config['UPLOAD_FOLDER'], test_data_file.filename)
+                test_data_file.save(test_data_filepath)
+                # Проверяем, что файл можно прочитать как датасет
+                try:
+                    if test_data_file.filename.endswith('.csv'):
+                        df = pd.read_csv(test_data_filepath)
+                    else:
+                        df = pd.read_excel(test_data_filepath, engine='openpyxl')
+                    # Если есть предыдущий файл с тестовыми данными, удаляем его
+                    if 'test_data_path' in session and os.path.exists(session['test_data_path']) and session['test_data_path'] != test_data_filepath:
+                        try:
+                            os.remove(session['test_data_path'])
+                        except Exception:
+                            pass
+                    # Сохраняем путь к файлу с тестовыми данными в сессии
+                    session['test_data_path'] = test_data_filepath
+                    test_data_path = test_data_filepath
+                    
+                except Exception as e:
+                    # Если возникла ошибка при чтении данных, удаляем файл
+                    if os.path.exists(test_data_filepath):
+                        os.remove(test_data_filepath)
+                    data_error = f'Ошибка при чтении файла с инференсными данными: {str(e)}'
+                    context['data_error'] = data_error
+                    return render_template('forecasting.html', **context)
+            except Exception as e:
+                data_error = f'Ошибка при сохранении файла с инференсными данными: {str(e)}'
+                context['data_error'] = data_error
+                return render_template('forecasting.html', **context)
+        elif 'test_data_path' in session:
+            # Используем ранее загруженные данные
+            test_data_path = session['test_data_path']
+        else:
+            # Данные не загружены
+            data_error = 'Необходимо загрузить инференсные данные'
+            context['data_error'] = data_error
+            return render_template('forecasting.html', **context)
+        
+        # Выполняем прогнозирование
+        try:
+            # Загружаем модель
+            model = joblib.load(model_path)
+            
+            # Проверяем, содержит ли модель метаданные (новый формат)
+            model_data = None
+            if isinstance(model, dict) and 'model' in model and 'feature_columns' in model and 'target_column' in model:
+                model_data = model
+                model = model_data['model']
+                required_features = model_data['feature_columns']
+            
+            # Загружаем данные
+            if test_data_path.endswith('.csv'):
+                df = pd.read_csv(test_data_path)
+            else:
+                df = pd.read_excel(test_data_path, engine='openpyxl')
+            
+            # Определяем требуемые признаки для модели
+            required_features = []
+            
+            # Если у нас уже есть информация о признаках из метаданных
+            if model_data and model_data['feature_columns']:
+                required_features = model_data['feature_columns']
+            # Иначе пытаемся получить информацию из самой модели
+            elif hasattr(model, 'feature_names_in_'):
+                # Для sklearn >= 1.0
+                required_features = model.feature_names_in_.tolist()
+            elif hasattr(model, '_Booster') and hasattr(model._Booster, 'feature_names'):
+                # Для XGBoost
+                required_features = model._Booster.feature_names
+            elif hasattr(model, 'feature_importances_') and hasattr(model, 'n_features_in_'):
+                # Определяем признаки из обучающих данных, если они доступны
+                if 'training_features' in session:
+                    required_features = session['training_features']
+            
+            # Если список признаков не удалось получить, пробуем определить из самой модели
+            # или использовать все столбцы из датафрейма в качестве признаков
+            if not required_features:
+                try:
+                    # Пробуем получить признаки из различных атрибутов модели
+                    if hasattr(model, 'feature_names_'):
+                        required_features = model.feature_names_
+                    elif hasattr(model, 'get_booster') and hasattr(model.get_booster(), 'feature_names'):
+                        required_features = model.get_booster().feature_names
+                    elif hasattr(model, 'booster') and hasattr(model.booster, 'feature_name'):
+                        required_features = model.booster.feature_name()
+                    elif hasattr(model, 'estimators_') and len(model.estimators_) > 0:
+                        # Для ансамблевых моделей
+                        if hasattr(model.estimators_[0], 'feature_names_in_'):
+                            required_features = model.estimators_[0].feature_names_in_.tolist()
+                except:
+                    # В случае ошибки используем все столбцы
+                    pass
+            
+            # Если у нас есть список требуемых признаков
+            if required_features:
+                # Проверяем наличие всех необходимых признаков в датасете
+                available_features = set(df.columns)
+                missing_features = [feature for feature in required_features if feature not in available_features]
+                # Если отсутствуют требуемые признаки, сообщаем об этом
+                if missing_features:
+                    data_error = f'В инференсных данных отсутствуют необходимые признаки: {", ".join(missing_features)}'
+                    context['data_error'] = data_error
+                    return render_template('forecasting.html', **context)
+                
+                # Подготавливаем датафрейм для прогнозирования, сохраняя правильный порядок признаков
+                X_inference = df[required_features].copy()
+                
+                # Преобразуем категориальные признаки, если они есть
+                for column in X_inference.columns:
+                    if X_inference[column].dtype == 'object':
+                        try:
+                            # Пробуем преобразовать в числовой формат
+                            X_inference[column] = pd.to_numeric(X_inference[column], errors='coerce')
+                            # Если есть пропуски после преобразования, заполняем их медианой
+                            if X_inference[column].isna().any():
+                                X_inference[column].fillna(X_inference[column].median(), inplace=True)
+                        except:
+                            # Если не удалось преобразовать в числовой формат, используем LabelEncoder
+                            le = LabelEncoder()
+                            X_inference[column] = le.fit_transform(X_inference[column].astype(str))
+
+                # Сохраняем копию исходных ненормализованных данных
+                X_inference_original = X_inference.copy()
+                
+                # Проверяем, нужно ли нормализовать данные
+                if model_data and model_data.get('normalized', False):
+                    # Проверяем, есть ли в метаданных информация о scaler
+                    if 'scaler' in model_data and model_data['scaler'] is not None:
+                        # Используем сохраненный scaler для нормализации новых данных
+                        X_inference = model_data['scaler'].transform(X_inference)
+                    else:
+                        # Если scaler не сохранен, но данные нормализовались при обучении,
+                        # нормализуем новые данные с нуля
+                        scaler = StandardScaler()
+                        X_inference = scaler.fit_transform(X_inference)
+                
+                # Делаем прогноз
+                try:
+                    y_pred = model.predict(X_inference)
+                except Exception as e:
+                    data_error = f'Ошибка при прогнозировании. Данные не подходят для модели: {str(e)}'
+                    context['data_error'] = data_error
+                    return render_template('forecasting.html', **context)
+                
+                # Создаем новый датафрейм с исходными ненормализованными признаками
+                result_df = X_inference_original.copy()
+                # Добавляем прогнозы в датафрейм
+                result_df['Prediction'] = y_pred
+                
+                # Сохраняем только необходимые данные в сессии
+                session['prediction_df'] = result_df.to_json(orient='records')
+                session['prediction_type'] = 'categorical' if model_data and model_data.get('task_type') == 'classification' else 'numeric'
+                
+                # Перенаправляем на страницу результатов
+                return redirect(url_for('forecasting'))
+            
+        except Exception as e:
+            flash(f'Ошибка при выполнении прогнозирования: {str(e)}', 'danger')
+            return redirect(url_for('forecasting'))
+    
+    # Если есть данные прогнозов, отображаем их
+    if 'prediction_df' in session:
+        try:
+            # Загружаем датафрейм с прогнозами
+            prediction_df = pd.read_json(session['prediction_df'], orient='records')
+            
+            # Получаем тип прогноза
+            prediction_type = session.get('prediction_type', 'numeric')
+            
+            # Общее количество записей
+            prediction_count = len(prediction_df)
+            
+            # Вычисляем общее количество страниц
+            total_pages = (prediction_count + per_page - 1) // per_page
+            
+            # Корректируем текущую страницу, если она выходит за пределы
+            if page < 1:
+                page = 1
+            elif page > total_pages and total_pages > 0:
+                page = total_pages
+            
+            # Выбираем записи для текущей страницы
+            start_idx = (page - 1) * per_page
+            end_idx = min(start_idx + per_page, prediction_count)
+            
+            # Получаем статистику по прогнозам
+            if prediction_type == 'numeric':
+                prediction_mean = round(prediction_df['Prediction'].mean(), 2)
+                prediction_min = round(prediction_df['Prediction'].min(), 2)
+                prediction_max = round(prediction_df['Prediction'].max(), 2)
+            else:
+                # Для категориальных данных вместо числовых характеристик показываем текстовые
+                most_common = prediction_df['Prediction'].value_counts().index[0]
+                prediction_mean = f"Мода: {most_common}"
+                prediction_min = "N/A"
+                prediction_max = "N/A"
+            
+            # Формируем таблицу для отображения
+            page_df = prediction_df.iloc[start_idx:end_idx]
+            predictions_table = page_df.to_html(classes='table table-striped table-bordered', index=False, justify='left')
+            
+            # Строим гистограмму в зависимости от типа данных
+            plt.figure(figsize=(10, 6))
+            if prediction_type == 'numeric':
+                # Гистограмма для числовых данных
+                sns.histplot(prediction_df['Prediction'], kde=True)
+                plt.title('Распределение прогнозируемых значений')
+                plt.xlabel('Значение')
+                plt.ylabel('Частота')
+                plt.grid(True, linestyle='--', alpha=0.7)
+            else:
+                # Гистограмма для категориальных данных
+                category_counts = prediction_df['Prediction'].value_counts()
+                sns.barplot(x=category_counts.index, y=category_counts.values)
+                plt.title('Распределение прогнозируемых категорий')
+                plt.xlabel('Категория')
+                plt.ylabel('Количество')
+                plt.xticks(rotation=45)
+                plt.grid(True, linestyle='--', alpha=0.7, axis='y')
+            
+            # Сохраняем гистограмму в base64 для отображения
+            buf = BytesIO()
+            plt.tight_layout()
+            plt.savefig(buf, format='png', dpi=300)
+            buf.seek(0)
+            hist_image = base64.b64encode(buf.getvalue()).decode('utf-8')
+            plt.close()
+            
+            # Формируем таблицу статистик
+            describe = prediction_df.describe(include='all').reset_index()
+            translations = {
+                'count': 'count - кол-во',
+                'mean': 'mean - среднее',
+                'std': 'std - стандартное отклонение',
+                'min': 'min - минимум',
+                '25%': '25% - 1-й квартиль',
+                '50%': '50% - медиана',
+                '75%': '75% - 3-й квартиль',
+                'max': 'max - максимум',
+                'unique': 'unique - уникальных значений',
+                'top': 'top - наиболее частое значение',
+                'freq': 'freq - частота самого частого значения',
+                'first': 'first - первая дата',
+                'last': 'last - последняя дата'
+            }
+            describe['index'] = describe['index'].apply(lambda x: translations.get(x, x))
+            describe = describe.fillna('')
+            describe.rename(columns={'index': 'Показатель'}, inplace=True)
+            stats_table = describe.to_html(classes='table table-striped table-bordered', index=False)
+            
+            # Добавляем результаты в контекст
+            context.update({
+                'predictions': True,  # Флаг наличия прогнозов
+                'predictions_table': predictions_table,
+                'stats_table': stats_table,
+                'hist_image': hist_image,
+                'prediction_count': prediction_count,
+                'prediction_mean': prediction_mean,
+                'prediction_min': prediction_min,
+                'prediction_max': prediction_max,
+                'current_page': page,
+                'total_pages': total_pages
+            })
+        
+        except Exception as e:
+            flash(f'Ошибка при отображении результатов прогнозирования: {str(e)}', 'danger')
+            # Если возникла ошибка, удаляем данные прогнозов
+            session.pop('prediction_df', None)
+            session.pop('prediction_type', None)
+    
+    return render_template('forecasting.html', **context)
 
 @app.route('/download_predictions')
 def download_predictions():
@@ -1700,19 +1714,16 @@ def download_predictions():
     try:
         # Загружаем датафрейм с прогнозами
         prediction_df = pd.read_json(session['prediction_df'])
-        
         # Создаем временный буфер для записи Excel
         output = BytesIO()
         prediction_df.to_excel(output, index=False, engine='openpyxl')
         output.seek(0)
-        
         # Формируем имя файла с текущей датой и временем
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f'predictions_{timestamp}.xlsx'
-        
         # Сохраняем прогнозы обратно в сессию после скачивания
         session['prediction_df'] = prediction_df.to_json()
-        
+        # Отправляем файл как Excel
         return send_file(
             output,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -1741,19 +1752,16 @@ def use_predictions():
     try:
         # Загружаем датафрейм с прогнозами
         prediction_df = pd.read_json(session['prediction_df'])
-        
         # Сохраняем датафрейм с прогнозами как новый файл
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         new_file_path = os.path.join(app.config['UPLOAD_FOLDER'], f'predictions_{timestamp}.csv')
         prediction_df.to_csv(new_file_path, index=False)
-        
         # Обновляем путь к файлу в сессии
         session['file_path'] = new_file_path
-        
         # Очищаем данные о прогнозах
         session.pop('prediction_df', None)
         session.pop('prediction_type', None)
-        
+        # Перенаправляем на страницу выбора действия
         return redirect(url_for('select_action'))
     except Exception as e:
         flash(f'Ошибка при использовании прогнозов: {str(e)}', 'danger')

@@ -5,48 +5,13 @@
     <meta charset="UTF-8">
     <title>Загрузка данных</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <style>
-        .btn-primary {
-            background-color: #4f9b58;
-            color: white;
-            border: none;
-        }
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
-        .btn-primary:hover {
-            background-color: #33793b;
-            color: white;
-            border: none;
-        }
-
-        .btn-primary:active {
-            background-color: #33793b;
-            color: white;
-            border: none;
-        }
-
-        .btn-secondary {
-            background-color: #499494;
-            color: white;
-            border: none;
-        }
-
-        .btn-secondary:hover {
-            background-color: #347070;
-            color: white;
-            border: none;
-        }
-
-        .btn-secondary:active {
-            background-color: #347070;
-            color: white;
-            border: none;
-        }
-    </style>
 </head>
 
 <body class="d-flex justify-content-center align-items-center" style="height: 100vh; background-color: #f8f9fa;">
     <div class="container text-center">
-        <h2>Добро пожаловать в приложение для анализа данных о здоровье!</h2>
+        <h2>Добро пожаловать в приложение AnalyticsHealth!</h2>
         <p>Загрузите свой датасет в одном из поддерживаемых форматов (CSV, Excel), чтобы начать анализ.</p>
 
         <!-- Форма для загрузки файла -->
@@ -55,14 +20,14 @@
                 <label for="file" class="form-label">Выберите файл для загрузки</label>
                 <input type="file" name="file" class="form-control" id="file" accept=".csv, .xls, .xlsx" required>
             </div>
-            <button type="submit" class="btn btn-primary btn-lg">Загрузить файл</button>
+            <button type="submit" class="btn btn-success btn-lg">Загрузить файл</button>
         </form>
 
         <hr class="my-4">
 
         <div class="mt-4">
             <p>У вас уже есть обученная модель для прогнозирования?</p>
-            <a href="{{ url_for('forecasting') }}" class="btn btn-secondary btn-lg">Перейти к прогнозированию</a>
+            <a href="{{ url_for('forecasting') }}" class="btn btn-primary btn-lg">Перейти к прогнозированию</a>
         </div>
 
         <!-- Блок для отображения флеш-сообщений -->

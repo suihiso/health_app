@@ -33,8 +33,10 @@
                 данных. Подтвердить действие?
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Нет</button>
-                <button type="button" class="btn btn-primary" onclick="redirectToIndex()">Да</button>
+                <button type="button" class="btn btn-success" onclick="redirectToIndex()"
+                    style="width: 75px;">Да</button>
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal" style="width: 75px;">Нет</button>
+
             </div>
         </div>
     </div>
@@ -146,17 +148,21 @@
     <div class="anchor-nav mb-4 d-flex justify-content-between">
         <!-- Кнопки с разделами -->
         <div>
-            <a href="#predictions-table" class="btn btn-outline-primary btn-sm">📋 Таблица прогнозов</a>
-            <a href="#predictions-stats" class="btn btn-outline-primary btn-sm">📊 Статистика</a>
-            <a href="#predictions-hist" class="btn btn-outline-primary btn-sm">📈 Гистограмма распределений</a>
+            <a href="#predictions-table" class="btn btn-outline-primary btn-md" data-bs-toggle="tooltip"
+                title="Просмотр таблицы прогнозов">📋 Таблица прогнозов</a>
+            <a href="#predictions-stats" class="btn btn-outline-primary btn-md" data-bs-toggle="tooltip"
+                title="Основные статистические показатели">📊 Статистика</a>
+            <a href="#predictions-hist" class="btn btn-outline-primary btn-md" data-bs-toggle="tooltip"
+                title="Гистограмма распределения прогнозов">📈 Гистограмма распределения
+            </a>
         </div>
         <!-- Кнопки скачивания и использования -->
         <div>
-            <a href="{{ url_for('download_predictions') }}" class="btn btn-success btn-sm" data-bs-toggle="tooltip"
-                title="Скачать таблицу прогнозов">
+            <a href="{{ url_for('download_predictions') }}" class="btn btn-success btn-md" data-bs-toggle="tooltip"
+                title="Скачать файл с таблицей прогнозов">
                 <i class="fas fa-download"></i> Скачать прогнозы
             </a>
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="tooltip"
+            <button type="button" class="btn btn-primary btn-md" data-bs-toggle="tooltip"
                 title="Использовать таблицу прогнозов для анализа данных" onclick="confirmUsePredictions()">
                 <i class="fas fa-chart-line"></i> Использовать прогнозы
             </button>
@@ -179,8 +185,10 @@
                     их снова в разделе "Загрузка новых данных". Подтвердить действие?
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Нет</button>
-                    <button type="button" class="btn btn-primary" onclick="usePredictions()">Да</button>
+                    <button type="button" class="btn btn-success" onclick="usePredictions()"
+                        style="width: 75px;">Да</button>
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal"
+                        style="width: 75px;">Нет</button>
                 </div>
             </div>
         </div>
@@ -245,7 +253,7 @@
         <h4>📈 Гистограмма распределений</h4>
         <div class="text-center">
             <img src="data:image/png;base64,{{ hist_image }}" class="img-fluid border"
-                alt="Гистограмма распределения прогнозов">
+                alt="Гистограмма распределения прогнозов" style="max-width: 80%; height: auto;">
         </div>
     </div>
 </div>
@@ -297,48 +305,26 @@
             });
         }
 
-        // Добавляем обработчики для кнопок
-        const actionButton = document.querySelector('a[href="{{ url_for("select_action") }}"]');
-        if (actionButton) {
-            actionButton.addEventListener('click', function (e) {
-                e.preventDefault();
-                checkDatasetAndShowModal('actionConfirmModal');
-            });
-        }
+        // Добавляем обработчики для всех ссылок в боковом меню, кроме "Прогнозирование данных"
+        const sidebarLinks = document.querySelectorAll('.sidebar-menu a');
+        sidebarLinks.forEach(link => {
+            // Проверяем, что это не ссылка на прогнозирование
+            if (!link.href.includes('forecasting')) {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    checkDatasetAndShowModal('trainingConfirmModal');
+                });
+            }
+        });
 
-        const exploreLink = document.querySelector('a[href="{{ url_for("explore") }}"]');
-        if (exploreLink) {
-            exploreLink.addEventListener('click', function (e) {
-                e.preventDefault();
-                checkDatasetAndShowModal('trainingConfirmModal');
-            });
-        }
-
-        const processLink = document.querySelector('a[href="{{ url_for("process_data") }}"]');
-        if (processLink) {
-            processLink.addEventListener('click', function (e) {
+        // Добавляем обработчик для ссылки "ЗДЕСЬ"
+        const hereLink = document.querySelector('.card-text a[href="{{ url_for("training_models") }}"]');
+        if (hereLink) {
+            hereLink.addEventListener('click', function (e) {
                 e.preventDefault();
                 checkDatasetAndShowModal('trainingConfirmModal');
             });
         }
-
-        const visualizeLink = document.querySelector('a[href="{{ url_for("visualize") }}"]');
-        if (visualizeLink) {
-            visualizeLink.addEventListener('click', function (e) {
-                e.preventDefault();
-                checkDatasetAndShowModal('trainingConfirmModal');
-            });
-        }
-
-        const trainingLink = document.querySelector('a[href="{{ url_for("training_models") }}"]');
-        if (trainingLink) {
-            trainingLink.addEventListener('click', function (e) {
-                e.preventDefault();
-                checkDatasetAndShowModal('trainingConfirmModal');
-            });
-        }
-
-
 
         // Добавляем обработчик для очистки результатов при уходе со страницы
         window.addEventListener('beforeunload', function () {

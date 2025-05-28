@@ -9,7 +9,7 @@
 <div class="anchor-nav mb-4 d-flex justify-content-between">
     <!-- Кнопки с действиями слева -->
     <div>
-        <a href="{{ url_for('download_cleaned_data') }}" class="btn btn-success btn-md" data-bs-toggle="tooltip"
+        <a href="{{ url_for('download_edited_data') }}" class="btn btn-success btn-md" data-bs-toggle="tooltip"
             title="Скачать файл с обработанными данными">Скачать обработанные данные</a>
     </div>
 
@@ -35,7 +35,7 @@
 <div class="row">
     <!-- Первый столбец: Обработка пропусков -->
     <div class="col-md-4 mb-4 border-end d-flex flex-column justify-content-center align-items-center">
-        <h4 id="drop_na">Обработка пропусков</h4>
+        <h4 class="text-center" id="drop_na">Обработка пропусков</h4>
         <form method="post" class="text-center">
             <label for="na_column" class="form-label">Выберите столбец, в котором содержатся пропуски:</label>
             <select name="na_column" id="na_column" class="form-select mb-3">
@@ -84,7 +84,7 @@
 
     <!-- Второй столбец: Обработка строк -->
     <div class="col-md-4 mb-4 border-end d-flex flex-column justify-content-center align-items-center">
-        <h4 id="row_operations">Обработка строк</h4>
+        <h4 class="text-center" id="row_operations">Обработка строк</h4>
         <form method="post" class="text-center">
             <label for="value_column" class="form-label">Выберите столбец, в котором содержится значение:</label>
             <select name="value_column" id="value_column" class="form-select mb-3">
@@ -161,7 +161,7 @@
 
     <!-- Третий столбец: Обработка аномальных значений -->
     <div class="col-md-4 mb-4 d-flex flex-column justify-content-center align-items-center">
-        <h4 id="outliers">Обработка аномальных значений</h4>
+        <h4 class="text-center" id="outliers">Обработка аномальных значений</h4>
         <form method="post" class="text-center">
             <label for="outlier_column" class="form-label">Выберите столбец, в котором содержатся аномальные
                 значения:</label>
@@ -208,7 +208,7 @@
 <div class="row">
     <!-- Первый столбец: Фильтрация данных -->
     <div class="col-md-6 mb-4 border-end d-flex flex-column justify-content-center align-items-center">
-        <h4 id="filter">Фильтрация данных</h4>
+        <h4 class="text-center" id="filter">Фильтрация данных</h4>
         <form method="post" class="text-center">
             <label for="filter_column" class="form-label">Выберите колонку для фильтрации:</label>
             <select name="filter_column" class="form-select">
@@ -234,7 +234,7 @@
 
     <!-- Второй столбец: Удаление столбцов -->
     <div class="col-md-6 mb-4 d-flex flex-column justify-content-center align-items-center">
-        <h4 id="drop_columns">Удаление столбцов</h4>
+        <h4 class="text-center" id="drop_columns">Удаление столбцов</h4>
         <form method="post" class="text-center">
             <label for="columns_to_drop" class="form-label">Выберите столбцы для удаления:</label>
             <select name="columns_to_drop" id="columns_to_drop" class="form-select" multiple>

@@ -1,120 +1,207 @@
-/* Общие стили */
-body {
-    font-family: Arial, sans-serif;
-    background-color: #f8f9fa;
-    color: #333;
-    padding: 20px;
-}
-
-h1,
-h2,
-h3,
-h4 {
-    color: #343a40;
-    font-weight: bold;
-}
-
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-/* Плавающее меню */
-.anchor-nav {
+/* Липкая шапка */
+nav.navbar {
     position: sticky;
     top: 0;
+    background-color: #3d7070 !important;
+    z-index: 100;
+    border-bottom: 1px solid #ddd;
+    padding-left: 25px;
+    padding-right: 25px;
+}
+
+/* Липкое меню */
+.anchor-nav {
+    position: sticky;
+    top: 60px;
     background-color: #fff;
-    padding: 10px 0;
     z-index: 10;
     border-bottom: 1px solid #ddd;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    padding: 10px 0;
 }
 
+/* Стили для кнопок в меню */
 .anchor-nav a {
-    margin-right: 15px;
-    color: #007bff;
+    margin-right: 10px;
+}
+
+/* Стили для правой стороны меню */
+.anchor-nav .ml-auto {
+    margin-left: auto;
+}
+
+/* Стили для бренда в шапке */
+.navbar-brand {
+    font-size: 24px;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+/* Стили для ссылок в меню */
+.nav-link {
+    color: #ffffff;
+}
+
+/* Стили для ссылок в меню при наведении */
+.navbar-brand:hover,
+.nav-link:hover {
+    color: #d6e5e5;
+}
+
+/* Стили для бокового меню */
+.sidebar {
+    position: fixed;
+    top: 0;
+    right: -330px;
+    width: 330px;
+    height: 100vh;
+    background-color: white;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+    transition: right 0.3s ease;
+    z-index: 1000;
+}
+
+/* Стили для активного состояния бокового меню */
+.sidebar.active {
+    right: 0;
+}
+
+/* Стили для меню в боковой панели */
+.sidebar-menu {
+    padding: 20px 0;
+}
+
+/* Стили для ссылок в меню */
+.sidebar-menu a {
+    display: block;
+    padding: 15px 25px;
+    color: #333;
     text-decoration: none;
-    font-size: 16px;
-    padding: 8px 16px;
 }
 
-.anchor-nav a:hover {
-    background-color: #007bff;
-    color: white;
-    border-radius: 4px;
+/* Стили для ссылок в меню при наведении */
+.sidebar-menu a:hover {
+    background-color: #f8f9fa;
 }
 
-/* Стили для таблицы */
-table {
+/* Стили для линии раздела */
+.slider-line {
+    border: 1px solid #ddd;
+    margin: 0;
+}
+
+/* Затемнение фона */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    z-index: 999;
 }
 
-table,
-th,
-td {
-    border: 1px solid #ddd;
+/* Стили для активного состояния затемнения фона */
+.overlay.active {
+    display: block;
 }
 
-th,
-td {
-    padding: 12px;
-    text-align: left;
+
+.btn-primary {
+    background-color: #499494;
+    color: white;
+    border: none;
 }
 
-th {
-    background-color: #007bff;
+.btn-primary:hover {
+    background-color: #347070;
+    color: white;
+    border: none;
+}
+
+.btn-outline-primary {
+    border-color: #499494;
+    color: #499494;
+}
+
+.btn-outline-primary:hover {
+    background-color: #499494;
+    border-color: #499494;
     color: white;
 }
 
-td {
-    background-color: #f9f9f9;
+/* Стили для неактивных кнопок */
+.btn-outline-primary:disabled,
+.btn-outline-primary.disabled {
+    background-color: #f8f9fa;
+    border-color: #499494;
+    color: #499494;
+    opacity: 0.65;
 }
 
-table.table-bordered {
-    border: 1px solid #ddd;
+.btn-outline-primary:disabled:hover,
+.btn-outline-primary.disabled:hover {
+    background-color: #f8f9fa;
+    border-color: #499494;
+    color: #499494;
+    opacity: 0.65;
 }
 
-table.table-striped tbody tr:nth-child(odd) {
-    background-color: #f2f2f2;
+.btn-secondary {
+    background-color: #8ab7b7;
+    color: white;
+    border: none;
 }
 
-/* Стили для "якори" и прокрутки */
-.anchor-target {
-    scroll-margin-top: 80px;
+.btn-secondary:hover {
+    background-color: #619292;
+    color: white;
+    border: none;
 }
 
-/* Дополнительные стили для текста */
-p,
-ul,
-ol {
-    font-size: 16px;
+.btn-success {
+    background-color: #71ad78;
+    color: white;
+    border: none;
 }
 
-ul {
-    list-style-type: disc;
-    padding-left: 20px;
+.btn-success:hover {
+    background-color: #47814e;
+    color: white;
+    border: none;
 }
 
-/* Стили для заголовков */
-h2,
-h3,
-h4 {
-    margin-top: 20px;
+.btn-warning {
+    background-color: #e7b56f;
+    color: white;
+    border: none;
 }
 
-/* Стиль для страницы "Обзор данных" */
-#head,
-#stats,
-#dtypes,
-#nulls,
-#anomalies {
-    margin-top: 40px;
+.btn-warning:hover {
+    background-color: #e7b56f;
+    color: white;
+    border: none;
 }
 
-hr {
-    border: 1px solid #ddd;
-    margin-top: 20px;
-    margin-bottom: 20px;
+.btn-outline-warning {
+    border-color: #e7b56f;
+    color: #e7b56f;
+}
+
+.btn-outline-warning:hover {
+    background-color: #d29f58;
+    border-color: #d29f58;
+    color: white;
+}
+
+.btn-danger {
+    background-color: #cd6767;
+    color: white;
+    border: none;
+}
+
+.btn-danger:hover {
+    background-color: #af4c4c;
+    color: white;
+    border: none;
 }
