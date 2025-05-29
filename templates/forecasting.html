@@ -328,15 +328,19 @@
 
         // Добавляем обработчик для очистки результатов при уходе со страницы
         window.beforeunloadHandler = function (e) {
-            // Проверяем, не является ли переход использованием прогнозов или скачиванием
+            // Получаем информацию о текущем переходе
             const activeElement = document.activeElement;
-            const isUsePredictions = activeElement &&
-                activeElement.href &&
-                (activeElement.href.includes('use_predictions') ||
-                    activeElement.href.includes('download_predictions'));
+            const currentUrl = window.location.href;
+            const targetUrl = activeElement?.href || '';
 
-            if (!isUsePredictions) {
-                // Отправляем запрос на очистку результатов
+            // Проверяем, является ли переход внутренней навигацией
+            const isInternalNavigation =
+                targetUrl.includes('forecasting') || // Любая навигация внутри страницы прогнозирования
+                targetUrl.includes('download_predictions') || // Скачивание прогнозов
+                targetUrl.includes('use_predictions'); // Использование прогнозов
+
+            if (!isInternalNavigation) {
+                // Отправляем запрос на очистку результатов только при уходе со страницы
                 fetch('/clear_predictions', {
                     method: 'POST',
                     headers: {
